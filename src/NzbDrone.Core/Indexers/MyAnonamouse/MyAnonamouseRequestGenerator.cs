@@ -63,14 +63,17 @@ namespace NzbDrone.Core.Indexers.MyAnonamouse
         {
             var searchType = MapSearchType(Settings.SearchType);
 
-            // Text search
+            // Text search — include author name to narrow results (MAM titles are "Author - Title [FORMAT]")
+            // Use raw title (not BookQuery, which URL-encodes spaces as '+')
+            var bookTitle = searchCriteria.BookTitle.SplitBookTitle(searchCriteria.Author.Name).Item1;
+            var searchText = $"{searchCriteria.Author.Name} {bookTitle}";
             var torBody = new Dictionary<string, object>
             {
                 { "main_cat", new[] { 13, 14 } },
                 { "searchType", searchType },
                 { "sortType", "default" },
                 { "startNumber", 0 },
-                { "text", searchCriteria.BookQuery },
+                { "text", searchText },
                 { "srchIn", new[] { "title", "author" } }
             };
 

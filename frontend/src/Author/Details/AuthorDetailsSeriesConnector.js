@@ -6,6 +6,7 @@ import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
 import { toggleBooksMonitored } from 'Store/Actions/bookActions';
 import { executeCommand } from 'Store/Actions/commandActions';
+import * as commandNames from 'Commands/commandNames';
 import { setSeriesSort, setSeriesTableOption } from 'Store/Actions/seriesActions';
 import createAuthorSelector from 'Store/Selectors/createAuthorSelector';
 import createCommandsSelector from 'Store/Selectors/createCommandsSelector';
@@ -94,6 +95,13 @@ class AuthorDetailsSeriesConnector extends Component {
     });
   };
 
+  onSearchSeriesPress = (seriesId) => {
+    this.props.executeCommand({
+      name: commandNames.SERIES_SEARCH,
+      seriesId
+    });
+  };
+
   //
   // Render
 
@@ -107,6 +115,7 @@ class AuthorDetailsSeriesConnector extends Component {
         isEditorActive={false}
         selectedState={{}}
         onSelectedChange={() => {}}
+        onSearchSeriesPress={this.onSearchSeriesPress}
       />
     );
   }

@@ -3,14 +3,38 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Indexers.Exceptions;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.Parser.Model;
 
 namespace NzbDrone.Core.Indexers.MyAnonamouse
 {
     public class MyAnonamouseParser : IParseIndexerResponse
     {
+        private static readonly Dictionary<string, Language> MamLanguageMap =
+            new Dictionary<string, Language>
+            {
+                { "1",  Language.English },
+                { "2",  Language.French },
+                { "3",  Language.German },
+                { "4",  Language.Spanish },
+                { "5",  Language.Italian },
+                { "6",  Language.Dutch },
+                { "7",  Language.Swedish },
+                { "9",  Language.Greek },
+                { "10", Language.Russian },
+                { "11", Language.Chinese },
+                { "12", Language.Japanese },
+                { "13", Language.Korean },
+                { "15", Language.Vietnamese },
+                { "16", Language.Polish },
+                { "17", Language.Portuguese },
+                { "18", Language.PortugueseBR },
+                { "19", Language.Finnish }
+            };
+
         public IList<ReleaseInfo> ParseResponse(IndexerResponse indexerResponse)
         {
             var torrentInfos = new List<ReleaseInfo>();
@@ -48,19 +72,41 @@ namespace NzbDrone.Core.Indexers.MyAnonamouse
                     flags |= IndexerFlags.Freeleech;
                 }
 
+                var languages = new List<Language>();
+                if (torrent.Language != null &&
+                    MamLanguageMap.TryGetValue(torrent.Language, out var parsedLanguage))
+                {
+                    languages.Add(parsedLanguage);
+                }
+
+                var authorName = ParseAuthorInfo(torrent.Author_Info);
+                var bookTitle = WebUtility.HtmlDecode(torrent.Title);
+                var filetype = torrent.Filetype?.Trim().ToUpperInvariant();
+
+                // Readarr's parser finds the author by fuzzy-matching against the Title string,
+                // and quality by parsing codec tokens — both must be in the Title.
+                var baseTitle = authorName.IsNotNullOrWhiteSpace()
+                    ? $"{authorName} - {bookTitle}"
+                    : bookTitle;
+                var releaseTitle = filetype.IsNotNullOrWhiteSpace()
+                    ? $"{baseTitle} [{filetype}]"
+                    : baseTitle;
+
                 torrentInfos.Add(new MyAnonamouseInfo
                 {
                     Guid = $"MAM-{torrent.Id}",
-                    Title = WebUtility.HtmlDecode(torrent.Name),
-                    Author = ParseAuthorInfo(torrent.Author_Info),
-                    Size = TryParseLong(torrent.Size),
+                    Title = releaseTitle,
+                    Author = authorName,
+                    Codec = filetype,
+                    Size = RssParser.ParseSize(torrent.Size, true),
                     DownloadUrl = $"https://www.myanonamouse.net/tor/download.php?tid={torrent.Id}",
                     InfoUrl = $"https://www.myanonamouse.net/t/{torrent.Id}",
                     PublishDate = DateTime.Parse(torrent.Added, null, System.Globalization.DateTimeStyles.AssumeUniversal).ToUniversalTime(),
                     Seeders = seeders,
                     Peers = (seeders ?? 0) + (leechers ?? 0),
                     DownloadProtocol = DownloadProtocol.Torrent,
-                    IndexerFlags = flags
+                    IndexerFlags = flags,
+                    Languages = languages
                 });
             }
 

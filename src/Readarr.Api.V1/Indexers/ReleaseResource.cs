@@ -4,9 +4,11 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Languages;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Qualities;
 using Readarr.Api.V1.CustomFormats;
+using Readarr.Api.V1.Languages;
 using Readarr.Http.REST;
 
 namespace Readarr.Api.V1.Indexers
@@ -50,6 +52,7 @@ namespace Readarr.Api.V1.Indexers
         public int? Leechers { get; set; }
         public DownloadProtocol Protocol { get; set; }
         public int IndexerFlags { get; set; }
+        public List<LanguageResource> Languages { get; set; }
 
         // Sent when queuing an unknown release
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -114,6 +117,9 @@ namespace Readarr.Api.V1.Indexers
                 Leechers = (torrentInfo.Peers.HasValue && torrentInfo.Seeders.HasValue) ? (torrentInfo.Peers.Value - torrentInfo.Seeders.Value) : (int?)null,
                 Protocol = releaseInfo.DownloadProtocol,
                 IndexerFlags = (int)indexerFlags,
+                Languages = releaseInfo.Languages
+                    .Select(l => new LanguageResource { Id = (int)l, Name = l.ToString() })
+                    .ToList(),
             };
         }
 
@@ -147,6 +153,10 @@ namespace Readarr.Api.V1.Indexers
             model.Indexer = resource.Indexer;
             model.DownloadProtocol = resource.Protocol;
             model.PublishDate = resource.PublishDate.ToUniversalTime();
+            model.Languages = resource.Languages?
+                .Where(r => Language.All.Any(l => l.Id == r.Id))
+                .Select(r => (Language)r.Id)
+                .ToList() ?? new List<Language>();
 
             return model;
         }

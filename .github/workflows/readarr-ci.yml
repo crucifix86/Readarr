@@ -1,0 +1,87 @@
+name: Readarr CI
+
+on:
+  push:
+    branches:
+      - develop
+    paths-ignore:
+      - ".github/**"
+      - "src/Readarr.Api.*/openapi.json"
+  pull_request:
+    branches:
+      - develop
+    paths-ignore:
+      - "src/NzbDrone.Core/Localization/Core/**"
+      - "src/Readarr.Api.*/openapi.json"
+
+env:
+  DOTNET_VERSION: "6.0.x"
+  NODE_VERSION: "20.x"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+          fetch-depth: 1
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Yarn Packages
+        id: yarn-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+            ${{ runner.os }}-yarn-
+
+      - name: Build and Run Tests
+        run: |
+          ./build.sh --backend
+          ./build.sh --frontend
+        env:
+          DOTNETVERSION: ${{ env.DOTNET_VERSION }}
+          FORCE_COLOR: 0
+          YARN_CACHE_FOLDER: ${{ steps.yarn-cache.outputs.cache-hit == 'true' && '~/.cache/yarn' || '' }}
+
+      - name: Prepare Integration Test Environment
+        run: |
+          # Create the bin directory where integration tests expect the Readarr executable
+          mkdir -p _tests/bin
+          # Copy the Readarr executable from the build output to where tests expect it
+          cp _output/net6.0/linux-x64/publish/Readarr _tests/bin/
+          # Make it executable
+          chmod +x _tests/bin/Readarr
+
+      - name: Make Test Dummy Executable (Unit)
+        run: find _tests -name "Readarr.Test.Dummy" -exec chmod a+x {} \;
+
+      - name: Run Unit Tests (linux-x64)
+        run: |
+          ./test.sh Linux Unit Test
+        env:
+          TEST_DIR: ${{ github.workspace }}/_tests/net6.0/linux-x64
+          OUTPUTFOLDER: _output
+          TESTSFOLDER: _tests
+
+      - name: Parse Test Results
+        uses: dorny/test-reporter@v2
+        if: always()
+        with:
+          name: Unit Test Results
+          path: "**/TestResult.xml"
+          reporter: dotnet-nunit
+          fail-on-error: true

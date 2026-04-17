@@ -8,7 +8,7 @@
 
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <RuntimeIdentifiers>win-x64;win-x86;osx-x64;osx-arm64;linux-x64;linux-musl-x64;linux-arm;linux-musl-arm;linux-arm64;linux-musl-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64</RuntimeIdentifiers>
 
     <ReadarrRootDir>$(MSBuildThisFileDirectory)..\</ReadarrRootDir>
 
@@ -35,8 +35,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--
         CS1591: Missing XML comment for publicly visible type or member 'Type_or_Member'
+        NU1902: OpenTelemetry packages for NET6 might log sensitive information (Readarr shouldn't have any) so we ignore it
+           https://github.com/advisories/GHSA-vh2m-22xx-q94f
     -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;NU1902</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -137,6 +139,18 @@
     <PackageReference Include="coverlet.collector" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <EmbedAllSources>true</EmbedAllSources>
+    <SourceLinkCreate>true</SourceLinkCreate>
+    <AdditionalCscArguments>$(AdditionalCscArguments) /pathmap:$(PathMap)</AdditionalCscArguments>
+  </PropertyGroup>
+
+  <Target Name="AddPathMapToCsc" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <CscCommandLineArgs>$(CscCommandLineArgs) /pathmap:$(PathMap)</CscCommandLineArgs>
+    </PropertyGroup>
+  </Target>
+
   <!-- Set up stylecop -->
   <ItemGroup Condition="'$(ReadarrProject)'=='true' and '$(EnableAnalyzers)'!='false'">
     <!-- StyleCop analysis -->
@@ -144,7 +158,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <AdditionalFiles Include="$(SolutionDir)stylecop.json" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" />
   </ItemGroup>
 
   <!--
@@ -215,5 +229,4 @@
     <_UsingDefaultRuntimeIdentifier>true</_UsingDefaultRuntimeIdentifier>
     <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
   </PropertyGroup>
-
 </Project>

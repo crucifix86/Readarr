@@ -6,14 +6,16 @@
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "nodeGypDependencies": true,
-      "version": "16",
+      "version": "20",
       "nvmVersion": "latest"
-    }
+    },
+    "ghcr.io/georgofenbeck/features/lazygit-linuxbinary:1": {}
   },
   "forwardPorts": [8787],
   "customizations": {
     "vscode": {
       "extensions": ["esbenp.prettier-vscode"]
     }
-  }
+  },
+  "mounts": [{ "source": "./readarr-config", "target": "/home/vscode/.config/Readarr", "type": "bind" }]
 }

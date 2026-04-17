@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using NzbDrone.Common.Cloud;
-using NzbDrone.Common.EnvironmentInfo;
-using NzbDrone.Common.Http;
-using NzbDrone.Core.Analytics;
-using NzbDrone.Core.Datastore;
+using System.IO;
+using System.Linq;
+using NzbDrone.Core.Configuration;
+using Octokit;
 
 namespace NzbDrone.Core.Update
 {
@@ -17,75 +15,147 @@ namespace NzbDrone.Core.Update
 
     public class UpdatePackageProvider : IUpdatePackageProvider
     {
-        private readonly IHttpClient _httpClient;
-        private readonly IHttpRequestBuilderFactory _requestBuilder;
-        private readonly IPlatformInfo _platformInfo;
-        private readonly IAnalyticsService _analyticsService;
-        private readonly IMainDatabase _mainDatabase;
+        private const string Owner = "faustvii";
+        private const string Repo = "Readarr";
+        private readonly IGitHubClient _githubClient;
+        private readonly IDeploymentInfoProvider _deploymentInfoProvider;
 
-        public UpdatePackageProvider(IHttpClient httpClient, IReadarrCloudRequestBuilder requestBuilder, IAnalyticsService analyticsService, IPlatformInfo platformInfo, IMainDatabase mainDatabase)
+        public UpdatePackageProvider(IDeploymentInfoProvider deploymentInfoProvider, IGitHubClient githubClient)
         {
-            _platformInfo = platformInfo;
-            _analyticsService = analyticsService;
-            _requestBuilder = requestBuilder.Services;
-            _httpClient = httpClient;
-            _mainDatabase = mainDatabase;
+            _deploymentInfoProvider = deploymentInfoProvider;
+            _githubClient = githubClient;
         }
 
         public UpdatePackage GetLatestUpdate(string branch, Version currentVersion)
         {
-            var request = _requestBuilder.Create()
-                                         .Resource("/update/{branch}")
-                                         .AddQueryParam("version", currentVersion)
-                                         .AddQueryParam("os", OsInfo.Os.ToString().ToLowerInvariant())
-                                         .AddQueryParam("arch", RuntimeInformation.OSArchitecture)
-                                         .AddQueryParam("runtime", "netcore")
-                                         .AddQueryParam("runtimeVer", _platformInfo.Version)
-                                         .AddQueryParam("dbType", _mainDatabase.DatabaseType)
-                                         .AddQueryParam("includeMajorVersion", true)
-                                         .SetSegment("branch", branch);
+            var owner = _deploymentInfoProvider.PackageOwner ?? Owner;
+            var repo = _deploymentInfoProvider.PackageRepo ?? Repo;
+            var releases = _githubClient.Repository.Release.GetAll(owner, repo).GetAwaiter().GetResult();
+            var latestRelease = releases
+                .Where(r => !r.Draft && !r.Prerelease)
+                .Select(r => new { Release = r, Version = TryParseVersion(r.TagName) })
+                .Where(x => x.Version != null)
+                .OrderByDescending(x => x.Version)
+                .FirstOrDefault();
 
-            if (_analyticsService.IsEnabled)
-            {
-                // Send if the system is active so we know which versions to deprecate/ignore
-                request.AddQueryParam("active", _analyticsService.InstallIsActive.ToString().ToLower());
-            }
-
-            var update = _httpClient.Get<UpdatePackageAvailable>(request.Build()).Resource;
-
-            if (!update.Available)
+            if (latestRelease == null)
             {
                 return null;
             }
 
-            return update.UpdatePackage;
+            if (latestRelease.Version <= currentVersion)
+            {
+                return null;
+            }
+
+            var tarAsset = latestRelease.Release.Assets.FirstOrDefault(a => a.Name.EndsWith("linux-musl-x64.tar.gz"));
+            var shaAsset = latestRelease.Release.Assets.FirstOrDefault(a => a.Name.EndsWith("linux-musl-x64.tar.gz.sha256"));
+            string hash = null;
+            if (shaAsset != null)
+            {
+                // Download the .sha256 file and parse the hash
+                var assetApiUrl = new Uri(shaAsset.BrowserDownloadUrl);
+                var responseRaw = _githubClient.Connection.Get<object>(assetApiUrl, new Dictionary<string, string>(), "application/octet-stream").GetAwaiter().GetResult();
+                var shaContent = string.Empty;
+                using (var fileStream = new StreamReader(responseRaw.HttpResponse.Body as Stream))
+                {
+                    shaContent = fileStream.ReadToEnd();
+                }
+
+                if (!string.IsNullOrWhiteSpace(shaContent))
+                {
+                    hash = shaContent.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                }
+            }
+
+            return new UpdatePackage
+            {
+                Version = latestRelease.Version,
+                ReleaseDate = latestRelease.Release.CreatedAt.DateTime,
+                Url = tarAsset?.BrowserDownloadUrl ?? latestRelease.Release.HtmlUrl,
+                Branch = branch,
+                Changes = ParseReleaseNotes(latestRelease.Release.Body),
+            };
         }
 
         public List<UpdatePackage> GetRecentUpdates(string branch, Version currentVersion, Version previousVersion)
         {
-            var request = _requestBuilder.Create()
-                                         .Resource("/update/{branch}/changes")
-                                         .AddQueryParam("version", currentVersion)
-                                         .AddQueryParam("os", OsInfo.Os.ToString().ToLowerInvariant())
-                                         .AddQueryParam("arch", RuntimeInformation.OSArchitecture)
-                                         .AddQueryParam("runtime", "netcore")
-                                         .AddQueryParam("runtimeVer", _platformInfo.Version)
-                                         .SetSegment("branch", branch);
+            var releases = _githubClient.Repository.Release.GetAll(Owner, Repo).GetAwaiter().GetResult();
+            var recentReleases = releases
+                .Where(r => !r.Draft && !r.Prerelease)
+                .Select(r => new { Release = r, Version = TryParseVersion(r.TagName) })
+                .Where(x => x.Version != null)
+                .OrderByDescending(x => x.Release.CreatedAt)
+                .Take(10)
+                .Select(x =>
+                {
+                    var asset = x.Release.Assets.FirstOrDefault(a => a.Name.EndsWith("linux-musl-x64.tar.gz"));
+                    return new UpdatePackage
+                    {
+                        Version = x.Version,
+                        Branch = branch,
+                        Url = asset?.BrowserDownloadUrl ?? x.Release.HtmlUrl,
+                        ReleaseDate = x.Release.CreatedAt.DateTime,
+                        Changes = ParseReleaseNotes(x.Release.Body),
+                        Hash = x.Release.CreatedAt.DateTime.ToString(),
+                        FileName = asset?.Name ?? "Readarr.develop.0.0.0-linux-musl-x64.tar.gz"
+                    };
+                })
+                .ToList();
 
-            if (previousVersion != null && previousVersion != currentVersion)
+            return recentReleases;
+        }
+
+        private static Version TryParseVersion(string versionString)
+        {
+            var v = versionString.TrimStart('v');
+            var parts = v.Split('.');
+            while (parts.Length < 4)
             {
-                request.AddQueryParam("prevVersion", previousVersion);
+                v += ".0";
+                parts = v.Split('.');
             }
 
-            if (_analyticsService.IsEnabled)
+            return Version.TryParse(v, out var version) ? version : null;
+        }
+
+        private static UpdateChanges ParseReleaseNotes(string body)
+        {
+            var newChanges = new List<string>();
+            var fixedChanges = new List<string>();
+
+            var currentSection = "";
+
+            foreach (var line in body.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                // Send if the system is active so we know which versions to deprecate/ignore
-                request.AddQueryParam("active", _analyticsService.InstallIsActive.ToString().ToLower());
+                if (line.StartsWith("### Features", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentSection = "new";
+                    continue;
+                }
+
+                if (line.StartsWith("### Bug Fixes", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentSection = "fixed";
+                    continue;
+                }
+
+                if (line.StartsWith("* ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var cleanLine = line[2..].Split(new[] { " (" }, StringSplitOptions.None)[0];
+
+                    if (currentSection == "new")
+                    {
+                        newChanges.Add(cleanLine);
+                    }
+                    else if (currentSection == "fixed")
+                    {
+                        fixedChanges.Add(cleanLine);
+                    }
+                }
             }
 
-            var updates = _httpClient.Get<List<UpdatePackage>>(request.Build());
-
-            return updates.Resource;
+            return new UpdateChanges { New = newChanges, Fixed = fixedChanges };
         }
     }
 }

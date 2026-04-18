@@ -85,9 +85,12 @@ jobs:
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
           TAGS="ghcr.io/${IMAGE_REPO}:latest"$'\n'"ghcr.io/${IMAGE_REPO}:develop"$'\n'"ghcr.io/${IMAGE_REPO}:sha-${SHORT_SHA}"
+          # .NET AssemblyVersion must be numeric; only set VERSION on real releases
+          VERSION_ARG=""
           VERSION_LABEL="dev-${SHORT_SHA}"
           if [ -n "${{ needs.build_meta.outputs.readarr_version }}" ]; then
             TAGS="${TAGS}"$'\n'"ghcr.io/${IMAGE_REPO}:${{ needs.build_meta.outputs.readarr_version }}"
+            VERSION_ARG="${{ needs.build_meta.outputs.readarr_version }}"
             VERSION_LABEL="${{ needs.build_meta.outputs.readarr_version }}"
           fi
           {
@@ -95,6 +98,7 @@ jobs:
             echo "$TAGS"
             echo "TAGS_EOF"
           } >> $GITHUB_OUTPUT
+          echo "version_arg=${VERSION_ARG}" >> $GITHUB_OUTPUT
           echo "version_label=${VERSION_LABEL}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image to GHCR
@@ -107,7 +111,7 @@ jobs:
           tags: ${{ steps.compute_tags.outputs.tags }}
           platforms: linux/amd64
           build-args: |
-            VERSION=${{ steps.compute_tags.outputs.version_label }}
+            VERSION=${{ steps.compute_tags.outputs.version_arg }}
             VENDOR=${{ github.repository_owner }}
             BRANCH=develop
           labels: |

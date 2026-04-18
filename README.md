@@ -78,9 +78,17 @@ Defaults to `https://api.bookinfo.pro` (community-hosted [rreading-glasses](http
 
 ## Known edges / tradeoffs
 
+- **Omnibus files don't import** (upstream limitation, fix planned — see Roadmap). When one `.epub`/`.mobi` contains two books in one file (e.g. "Dinosaur Planet AND Dinosaur Planet Survivors", or "The Ship Who Searched; Partnership"), Readarr can only map a file to a single book entity and rejects the import with *"Couldn't find similar book"*. Co-author names in filenames are unrelated — single-author collaborations import fine. Current workarounds: Calibre-split into two files, Manual Import to one of the two books (the other stays "missing"), or re-search for a single-book release.
 - **Skip Book Matching** accepts every import by design. If it picks a wrong target for a sloppily-named file, you'll end up with the file in the wrong author/book path — manual cleanup. Leave it off and raise the threshold to 0.35-0.50 if you want a middle ground.
 - **Duplicate rejection**: Readarr won't re-import a file whose size matches something already in the library. If you re-download a book, clear the existing file first.
 - **Live metadata tests** are marked `[Explicit]` and skip in CI. Run them manually when validating metadata-source changes.
+
+## Roadmap
+
+Known gaps we plan to fix (not-yet-started):
+
+- **Omnibus/multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
+- Dedicated self-hosted metadata server (user-owned alternative to `api.bookinfo.pro`)
 
 ## Contributing / building locally
 

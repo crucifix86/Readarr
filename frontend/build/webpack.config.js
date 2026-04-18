@@ -135,6 +135,12 @@ module.exports = (env) => {
               {
                 source: 'frontend/src/Content/robots.txt',
                 destination: path.join(distFolder, 'Content/robots.txt')
+              },
+
+              // pdf.js worker (served as a static asset; workerSrc points here)
+              {
+                source: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
+                destination: path.join(distFolder, 'Content/pdf.worker.min.mjs')
               }
             ]
           }

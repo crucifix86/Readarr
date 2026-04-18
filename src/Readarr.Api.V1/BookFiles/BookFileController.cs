@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.DecisionEngine.Specifications;
@@ -12,6 +13,7 @@ using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Http.REST.Attributes;
 using NzbDrone.SignalR;
+using Readarr.Api.V1.Opds;
 using Readarr.Http;
 using Readarr.Http.REST;
 using BadRequestException = NzbDrone.Core.Exceptions.BadRequestException;
@@ -30,6 +32,7 @@ namespace Readarr.Api.V1.BookFiles
         private readonly IAuthorService _authorService;
         private readonly IBookService _bookService;
         private readonly IUpgradableSpecification _upgradableSpecification;
+        private readonly IDiskProvider _diskProvider;
 
         public BookFileController(IBroadcastSignalRMessage signalRBroadcaster,
                                IMediaFileService mediaFileService,
@@ -37,7 +40,8 @@ namespace Readarr.Api.V1.BookFiles
                                IMetadataTagService metadataTagService,
                                IAuthorService authorService,
                                IBookService bookService,
-                               IUpgradableSpecification upgradableSpecification)
+                               IUpgradableSpecification upgradableSpecification,
+                               IDiskProvider diskProvider)
             : base(signalRBroadcaster)
         {
             _mediaFileService = mediaFileService;
@@ -46,6 +50,23 @@ namespace Readarr.Api.V1.BookFiles
             _authorService = authorService;
             _bookService = bookService;
             _upgradableSpecification = upgradableSpecification;
+            _diskProvider = diskProvider;
+        }
+
+        [HttpGet("{id:int}/content")]
+        public IActionResult GetContent(int id)
+        {
+            var file = _mediaFileService.Get(id);
+
+            if (file == null || string.IsNullOrEmpty(file.Path) || !_diskProvider.FileExists(file.Path))
+            {
+                return NotFound();
+            }
+
+            var stream = _diskProvider.OpenReadStream(file.Path);
+            var mime = OpdsFeedBuilder.MimeFor(file.Path);
+            Response.Headers["Accept-Ranges"] = "bytes";
+            return File(stream, mime, enableRangeProcessing: true);
         }
 
         private BookFileResource MapToResource(BookFile bookFile)

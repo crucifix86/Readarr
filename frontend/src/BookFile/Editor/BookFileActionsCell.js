@@ -5,8 +5,17 @@ import IconButton from 'Components/Link/IconButton';
 import ConfirmModal from 'Components/Modal/ConfirmModal';
 import TableRowCell from 'Components/Table/Cells/TableRowCell';
 import { icons, kinds } from 'Helpers/Props';
+import getPathWithUrlBase from 'Utilities/getPathWithUrlBase';
 import translate from 'Utilities/String/translate';
 import styles from './BookFileActionsCell.css';
+
+function isReadable(path) {
+  if (!path) {
+    return false;
+  }
+  const ext = path.split('.').pop().toLowerCase();
+  return ext === 'epub' || ext === 'pdf';
+}
 
 class BookFileActionsCell extends Component {
 
@@ -63,6 +72,14 @@ class BookFileActionsCell extends Component {
 
     return (
       <TableRowCell className={styles.TrackActionsCell}>
+        {
+          isReadable(path) &&
+            <IconButton
+              name={icons.WIKI}
+              to={getPathWithUrlBase(`/read/${id}`)}
+              title={translate('Read')}
+            />
+        }
         {
           path &&
             <IconButton

@@ -36,7 +36,8 @@ namespace Readarr.Http.Frontend.Mappers
             return !resourceUrl.StartsWith("/content") &&
                    !resourceUrl.StartsWith("/mediacover") &&
                    !resourceUrl.Contains(".") &&
-                   !resourceUrl.StartsWith("/login");
+                   !resourceUrl.StartsWith("/login") &&
+                   !resourceUrl.StartsWith("/reader");
         }
     }
 }

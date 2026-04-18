@@ -37,7 +37,8 @@ module.exports = (env) => {
     },
 
     entry: {
-      index: 'index.ts'
+      index: 'index.ts',
+      reader: 'ReaderApp/index.tsx'
     },
 
     resolve: {
@@ -92,7 +93,7 @@ module.exports = (env) => {
       }),
 
       new MiniCssExtractPlugin({
-        filename: 'Content/styles.css',
+        filename: isProduction ? 'Content/[name]-[contenthash].css' : 'Content/[name].css',
         chunkFilename: isProduction ? 'Content/[id]-[chunkhash].css' : 'Content/[id].css'
       }),
 
@@ -100,6 +101,15 @@ module.exports = (env) => {
         template: 'frontend/src/index.ejs',
         filename: 'index.html',
         publicPath: '/',
+        chunks: ['index'],
+        inject: false
+      }),
+
+      new HtmlWebpackPlugin({
+        template: 'frontend/src/ReaderApp/reader.ejs',
+        filename: 'reader.html',
+        publicPath: '/',
+        chunks: ['reader'],
         inject: false
       }),
 

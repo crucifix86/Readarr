@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <meta name="theme-color" content="#1b1d24" />
+    <meta name="msapplication-navbutton-color" content="#1b1d24" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no">
+
+    <meta name="description" content="Readarr Reader" />
+
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="__URL_BASE__/Content/Images/Icons/apple-touch-icon.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="__URL_BASE__/Content/Images/Icons/favicon-32x32.png"
+    />
+    <link rel="shortcut icon" type="image/ico" href="__URL_BASE__/favicon.ico" data-no-hash />
+
+    <script>
+      window.ReadarrReader = {
+        urlBase: '__URL_BASE__'
+      };
+    </script>
+
+    <% for (key in htmlWebpackPlugin.files.js) { %><script type="text/javascript" src="<%= htmlWebpackPlugin.files.js[key] %>" data-no-hash></script><% } %>
+    <% for (key in htmlWebpackPlugin.files.css) { %><link href="<%= htmlWebpackPlugin.files.css[key] %>" rel="stylesheet"></link><% } %>
+
+    <title>Readarr Reader</title>
+
+  </head>
+
+  <body>
+    <div id="reader-root" class="readerRoot"></div>
+  </body>
+</html>

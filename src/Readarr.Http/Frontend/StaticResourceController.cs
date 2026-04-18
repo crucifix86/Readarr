@@ -30,6 +30,19 @@ namespace Readarr.Http.Frontend
             return MapResource("login");
         }
 
+        [AllowAnonymous]
+        [HttpGet("reader")]
+        [HttpGet("reader/{**path:regex(^(?!api(/|$)).*)}")]
+        public IActionResult ReaderPage([FromRoute] string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return MapResource("reader");
+            }
+
+            return MapResource("reader/" + path);
+        }
+
         [EnableCors("AllowGet")]
         [AllowAnonymous]
         [HttpGet("content/{**path:regex(^(?!/*api/).*)}")]
@@ -39,7 +52,7 @@ namespace Readarr.Http.Frontend
         }
 
         [HttpGet("")]
-        [HttpGet("/{**path:regex(^(?!(api|feed|opds)(/|$)).*)}")]
+        [HttpGet("/{**path:regex(^(?!(api|feed|opds|reader)(/|$)).*)}")]
         public IActionResult Index([FromRoute] string path)
         {
             return MapResource(path);

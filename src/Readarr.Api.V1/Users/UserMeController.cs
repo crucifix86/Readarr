@@ -15,12 +15,30 @@ namespace Readarr.Api.V1.Users
     {
         private readonly IUserBookProgressRepository _progressRepo;
         private readonly IUserBookmarkRepository _bookmarkRepo;
+        private readonly IUserFavoriteRepository _favoriteRepo;
 
         public UserMeController(IUserBookProgressRepository progressRepo,
-                                IUserBookmarkRepository bookmarkRepo)
+                                IUserBookmarkRepository bookmarkRepo,
+                                IUserFavoriteRepository favoriteRepo)
         {
             _progressRepo = progressRepo;
             _bookmarkRepo = bookmarkRepo;
+            _favoriteRepo = favoriteRepo;
+        }
+
+        [HttpGet("progress")]
+        public ActionResult<List<UserBookProgressResource>> ListProgress()
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+
+            if (userId == null)
+            {
+                return BadRequest(new { message = "A per-user ApiKey is required for /user/me endpoints" });
+            }
+
+            return _progressRepo.ForUser(userId.Value)
+                .Select(p => p.ToResource())
+                .ToList();
         }
 
         [HttpGet("progress/{bookFileId:int}")]
@@ -147,6 +165,69 @@ namespace Readarr.Api.V1.Users
             }
 
             _bookmarkRepo.Delete(id);
+            return Ok();
+        }
+
+        [HttpGet("favorites")]
+        public ActionResult<List<UserFavoriteResource>> ListFavorites()
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+
+            if (userId == null)
+            {
+                return BadRequest(new { message = "A per-user ApiKey is required for /user/me endpoints" });
+            }
+
+            return _favoriteRepo.ForUser(userId.Value)
+                .Select(f => f.ToResource())
+                .ToList();
+        }
+
+        [HttpPost("favorites/{bookId:int}")]
+        public ActionResult<UserFavoriteResource> AddFavorite(int bookId)
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+
+            if (userId == null)
+            {
+                return BadRequest(new { message = "A per-user ApiKey is required for /user/me endpoints" });
+            }
+
+            var existing = _favoriteRepo.Find(userId.Value, bookId);
+
+            if (existing != null)
+            {
+                return existing.ToResource();
+            }
+
+            var created = _favoriteRepo.Insert(new UserFavorite
+            {
+                UserId = userId.Value,
+                BookId = bookId,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            return created.ToResource();
+        }
+
+        [HttpDelete("favorites/{bookId:int}")]
+        public ActionResult DeleteFavorite(int bookId)
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+
+            if (userId == null)
+            {
+                return BadRequest(new { message = "A per-user ApiKey is required for /user/me endpoints" });
+            }
+
+            var existing = _favoriteRepo.Find(userId.Value, bookId);
+
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            _favoriteRepo.Delete(existing.Id);
             return Ok();
         }
     }

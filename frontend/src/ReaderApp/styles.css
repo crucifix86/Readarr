@@ -1,0 +1,487 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  background: #1b1d24;
+  color: #e6e6e6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.readerRoot {
+  height: 100%;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Shell */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.shellHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2d36;
+  background: #14161d;
+  gap: 16px;
+}
+
+.shellBrand {
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.shellNav {
+  display: flex;
+  gap: 16px;
+
+  flex: 1 1 auto;
+}
+
+.shellNav a {
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  color: #aaa;
+  font-size: 14px;
+}
+
+.shellNav a.active {
+  border-bottom-color: #0cf;
+  color: #fff;
+}
+
+.shellUser {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  font-size: 13px;
+}
+
+.shellUsername {
+  color: #9aa;
+}
+
+.shellLogout {
+  padding: 6px 10px;
+  border: 1px solid #2a2d36;
+  border-radius: 4px;
+  color: #ccc;
+}
+
+.shellLogout:hover { background: #22252f; }
+
+.shellMain {
+  flex: 1 1 auto;
+  padding: 16px;
+}
+
+/* Pages */
+.pageTitle {
+  margin: 0 0 16px;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.pageStatus {
+  padding: 40px 16px;
+  color: #aaa;
+  text-align: center;
+}
+
+.pageError { color: #f77; }
+
+/* Book grid */
+.bookGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.bookCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  color: inherit;
+  text-decoration: none;
+}
+
+.bookCardDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bookCardCover {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #2a2d36;
+  aspect-ratio: 2 / 3;
+}
+
+.bookCardCover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bookCardProgress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.bookCardProgressBar {
+  height: 100%;
+  background: #0cf;
+}
+
+.bookCardFav {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  text-align: center;
+  font-size: 18px;
+  line-height: 32px;
+}
+
+.bookCardFav.on { color: #fc3; }
+
+.bookCardTitle {
+  display: box;
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.bookCardAuthor {
+  display: box;
+  overflow: hidden;
+  color: #9aa;
+  font-size: 12px;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+/* Login */
+.loginWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  min-height: 100vh;
+}
+
+.loginForm {
+  padding: 24px;
+  max-width: 360px;
+  width: 100%;
+  border: 1px solid #2a2d36;
+  border-radius: 8px;
+  background: #14161d;
+}
+
+.loginTitle {
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 22px;
+}
+
+.loginHint {
+  margin: 0 0 20px;
+  color: #9aa;
+  font-size: 13px;
+}
+
+.loginLabel {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  color: #9aa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+
+.loginInput {
+  padding: 10px 12px;
+  width: 100%;
+  border: 1px solid #2a2d36;
+  border-radius: 4px;
+  background: #1b1d24;
+  color: #fff;
+  font-size: 15px;
+}
+
+.loginInput:focus {
+  outline: none;
+  border-color: #0cf;
+}
+
+.loginError {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: #4a1f1f;
+  color: #ffb3b3;
+  font-size: 13px;
+}
+
+.loginSubmit {
+  margin-top: 20px;
+  padding: 12px;
+  width: 100%;
+  border-radius: 4px;
+  background: #0cf;
+  color: #14161d;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.loginSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Reader */
+.reader {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #14161d;
+}
+
+.readerToolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  min-height: 44px;
+  border-bottom: 1px solid #2a2d36;
+  background: #14161d;
+  gap: 8px;
+}
+
+.readerToolbar button {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.readerToolbar button:hover { background: #22252f; }
+
+.readerToolbarSpacer { flex: 1; }
+
+.readerPageindicator {
+  padding: 0 8px;
+  min-width: 80px;
+  color: #9aa;
+  text-align: center;
+  font-size: 13px;
+}
+
+.readerBody {
+  display: flex;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.readerSidebar {
+  flex: 0 0 260px;
+  overflow-y: auto;
+  padding: 12px;
+  border-right: 1px solid #2a2d36;
+  background: #1b1d24;
+}
+
+.readerSidebarSection { margin-bottom: 18px; }
+
+.readerSidebarHeader {
+  margin-bottom: 6px;
+  color: #9aa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.readerSidebarEmpty {
+  padding: 4px 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.readerSidebarList li {
+  padding: 4px 0;
+}
+
+.readerSidebarItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.readerSidebarLink {
+  flex: 1 1 auto;
+  color: #ccc;
+  text-align: left;
+  font-size: 13px;
+}
+
+.readerSidebarLink:hover {
+  color: #fff;
+}
+
+.readerSidebarDelete {
+  padding: 2px 8px;
+  color: #777;
+}
+
+.readerSidebarDelete:hover { color: #f77; }
+
+.readerViewer {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 16px;
+  background: #fafafa;
+  color: #222;
+}
+
+.readerEpubHost {
+  width: 100%;
+  height: 100%;
+}
+
+.readerPdfViewer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.readerPdfCanvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.readerTapPrev, .readerTapNext {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 15%;
+  cursor: pointer;
+}
+
+.readerTapPrev { left: 0; }
+
+.readerTapNext { right: 0; }
+
+.readerRendering {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+}
+
+/* Mobile */
+
+@media (max-width: 640px) {
+  .shellHeader {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .shellBrand {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .shellNav {
+    justify-content: space-between;
+    width: 100%;
+    order: 2;
+    gap: 12px;
+  }
+
+  .shellNav a {
+    flex: 1;
+    text-align: center;
+  }
+
+  .shellUser {
+    order: 3;
+  }
+
+  .bookGrid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+  }
+
+  .readerSidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    flex: 0 0 240px;
+    max-width: 80%;
+    box-shadow: 4px 0 20px rgb(0 0 0 / 40%);
+  }
+
+  .readerTapPrev,
+  .readerTapNext {
+    width: 25%;
+  }
+}

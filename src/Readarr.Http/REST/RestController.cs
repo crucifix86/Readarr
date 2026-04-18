@@ -12,6 +12,7 @@ using Readarr.Http.Validation;
 
 namespace Readarr.Http.REST
 {
+    [ApiController]
     public abstract class RestController<TResource> : Controller
         where TResource : RestResource, new()
     {

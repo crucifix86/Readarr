@@ -18,6 +18,8 @@ namespace Readarr.Api.V1.Config
         public bool WatchLibraryForChanges { get; set; }
         public RescanAfterRefreshType RescanAfterRefresh { get; set; }
         public AllowFingerprinting AllowFingerprinting { get; set; }
+        public double BookMatchThreshold { get; set; }
+        public bool SkipBookMatching { get; set; }
 
         public bool SetPermissionsLinux { get; set; }
         public string ChmodFolder { get; set; }
@@ -47,6 +49,8 @@ namespace Readarr.Api.V1.Config
                 WatchLibraryForChanges = model.WatchLibraryForChanges,
                 RescanAfterRefresh = model.RescanAfterRefresh,
                 AllowFingerprinting = model.AllowFingerprinting,
+                BookMatchThreshold = model.BookMatchThreshold,
+                SkipBookMatching = model.SkipBookMatching,
 
                 SetPermissionsLinux = model.SetPermissionsLinux,
                 ChmodFolder = model.ChmodFolder,

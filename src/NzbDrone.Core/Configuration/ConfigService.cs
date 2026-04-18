@@ -248,6 +248,20 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("AllowFingerprinting", value); }
         }
 
+        public double BookMatchThreshold
+        {
+            get { return double.Parse(GetValue("BookMatchThreshold", "0.20"), System.Globalization.CultureInfo.InvariantCulture); }
+
+            set { SetValue("BookMatchThreshold", value.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+        }
+
+        public bool SkipBookMatching
+        {
+            get { return GetValueBoolean("SkipBookMatching", false); }
+
+            set { SetValue("SkipBookMatching", value); }
+        }
+
         public bool SetPermissionsLinux
         {
             get { return GetValueBoolean("SetPermissionsLinux", false); }

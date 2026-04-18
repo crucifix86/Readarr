@@ -353,6 +353,44 @@ class MediaManagement extends Component {
                     isAdvanced={true}
                   >
                     <FormLabel>
+                      {translate('BookMatchThreshold')}
+                    </FormLabel>
+
+                    <FormInputGroup
+                      type={inputTypes.NUMBER}
+                      name="bookMatchThreshold"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      helpText={translate('BookMatchThresholdHelpText')}
+                      onChange={onInputChange}
+                      {...settings.bookMatchThreshold}
+                    />
+                  </FormGroup>
+
+                  <FormGroup
+                    advancedSettings={advancedSettings}
+                    isAdvanced={true}
+                  >
+                    <FormLabel>
+                      {translate('SkipBookMatching')}
+                    </FormLabel>
+
+                    <FormInputGroup
+                      type={inputTypes.CHECK}
+                      name="skipBookMatching"
+                      helpText={translate('SkipBookMatchingHelpText')}
+                      helpTextWarning={translate('SkipBookMatchingHelpTextWarning')}
+                      onChange={onInputChange}
+                      {...settings.skipBookMatching}
+                    />
+                  </FormGroup>
+
+                  <FormGroup
+                    advancedSettings={advancedSettings}
+                    isAdvanced={true}
+                  >
+                    <FormLabel>
                       {translate('ChangeFileDate')}
                     </FormLabel>
 

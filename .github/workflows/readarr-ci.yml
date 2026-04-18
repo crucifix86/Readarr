@@ -15,7 +15,7 @@ on:
       - "src/Readarr.Api.*/openapi.json"
 
 env:
-  DOTNET_VERSION: "6.0.x"
+  DOTNET_VERSION: "8.0.x"
   NODE_VERSION: "20.x"
 
 jobs:
@@ -23,24 +23,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: "true"
           fetch-depth: 1
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache Yarn Packages
         id: yarn-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -62,7 +62,7 @@ jobs:
           # Create the bin directory where integration tests expect the Readarr executable
           mkdir -p _tests/bin
           # Copy the Readarr executable from the build output to where tests expect it
-          cp _output/net6.0/linux-x64/publish/Readarr _tests/bin/
+          cp _output/net8.0/linux-x64/publish/Readarr _tests/bin/
           # Make it executable
           chmod +x _tests/bin/Readarr
 
@@ -73,7 +73,7 @@ jobs:
         run: |
           ./test.sh Linux Unit Test
         env:
-          TEST_DIR: ${{ github.workspace }}/_tests/net6.0/linux-x64
+          TEST_DIR: ${{ github.workspace }}/_tests/net8.0/linux-x64
           OUTPUTFOLDER: _output
           TESTSFOLDER: _tests
 

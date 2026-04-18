@@ -58,12 +58,12 @@ namespace NzbDrone.Test.Common
             _startupLog = new List<string>();
             if (BuildInfo.IsDebug)
             {
-                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net6.0", readarrConsoleExe));
+                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net8.0", readarrConsoleExe));
             }
             else
             {
-                // Use _output/net6.0/Readarr for both Debug and Release
-                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net6.0", readarrConsoleExe));
+                // Use _output/net8.0/Readarr for both Debug and Release
+                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net8.0", readarrConsoleExe));
             }
 
             while (true)

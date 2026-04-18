@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Builder
-FROM mcr.microsoft.com/dotnet/sdk:6.0-alpine AS builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS builder
 
 ARG VERSION
 ARG BRANCH=develop
@@ -62,7 +62,7 @@ RUN apk add --no-cache \
     && chown -R root:root /app && chmod -R 755 /app
 
 # Copy the packaged application from the builder stage
-COPY --from=builder /src/_artifacts/linux-musl-x64/net6.0/Readarr /app/bin/
+COPY --from=builder /src/_artifacts/linux-musl-x64/net8.0/Readarr /app/bin/
 
 # Remove updater if not needed
 RUN rm -rf /app/bin/Readarr.Update

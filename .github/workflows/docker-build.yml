@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: "6.0.x"
+  DOTNET_VERSION: "8.0.x"
   NODE_VERSION: "20.x"
 
 jobs:
@@ -22,13 +22,13 @@ jobs:
       release_type: ${{ steps.semantic.outputs.release_type }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 100
           fetch-tags: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -109,12 +109,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -126,7 +126,7 @@ jobs:
 
       - name: Create linux-musl-x64 tarball
         run: |
-          tar -czf Readarr.develop.${{ needs.build_meta.outputs.readarr_version }}.linux-musl-x64.tar.gz -C _artifacts/linux-musl-x64/net6.0 Readarr
+          tar -czf Readarr.develop.${{ needs.build_meta.outputs.readarr_version }}.linux-musl-x64.tar.gz -C _artifacts/linux-musl-x64/net8.0 Readarr
 
       - name: Compute SHA256 hash
         run: |

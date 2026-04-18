@@ -126,6 +126,17 @@ function Settings() {
 
         <Link
           className={styles.link}
+          to="/settings/users"
+        >
+          {translate('Users')}
+        </Link>
+
+        <div className={styles.summary}>
+          {translate('UsersSettingsSummary')}
+        </div>
+
+        <Link
+          className={styles.link}
           to="/settings/general"
         >
           {translate('General')}

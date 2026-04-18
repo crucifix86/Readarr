@@ -1,0 +1,53 @@
+.user {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 10px;
+  height: 30px;
+  border-bottom: 1px solid var(--borderColor);
+  line-height: 30px;
+}
+
+.username {
+  @add-mixin truncate;
+
+  flex: 0 1 200px;
+}
+
+.role {
+  @add-mixin truncate;
+
+  flex: 0 1 100px;
+}
+
+.email {
+  @add-mixin truncate;
+
+  flex: 0 1 260px;
+}
+
+.apiKey {
+  @add-mixin truncate;
+
+  display: flex;
+  align-items: center;
+  flex: 0 1 320px;
+}
+
+.apiKeyValue {
+  @add-mixin truncate;
+
+  flex: 1 1 auto;
+  font-family: var(--defaultMonoFontFamily, monospace);
+  font-size: 12px;
+}
+
+.apiKeyAction {
+  margin-left: 6px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  flex: 1 0 auto;
+  padding-right: 10px;
+}

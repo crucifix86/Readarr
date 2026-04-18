@@ -27,6 +27,7 @@ import QualityConnector from 'Settings/Quality/QualityConnector';
 import Settings from 'Settings/Settings';
 import TagSettings from 'Settings/Tags/TagSettings';
 import UISettingsConnector from 'Settings/UI/UISettingsConnector';
+import UserSettings from 'Settings/Users/UserSettings';
 import BackupsConnector from 'System/Backup/BackupsConnector';
 import LogsTableConnector from 'System/Events/LogsTableConnector';
 import Logs from 'System/Logs/Logs';
@@ -209,6 +210,11 @@ function AppRoutes(props) {
       <Route
         path="/settings/tags"
         component={TagSettings}
+      />
+
+      <Route
+        path="/settings/users"
+        component={UserSettings}
       />
 
       <Route

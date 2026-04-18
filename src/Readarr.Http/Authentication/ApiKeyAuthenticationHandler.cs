@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Readarr.Http.Authentication
@@ -23,15 +24,21 @@ namespace Readarr.Http.Authentication
 
     public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
     {
+        public const string UserIdClaim = "ReadarrUserId";
+        public const string UserRoleClaim = "ReadarrUserRole";
+
         private readonly string _apiKey;
+        private readonly IUserService _userService;
 
         public ApiKeyAuthenticationHandler(IOptionsMonitor<ApiKeyAuthenticationOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            IConfigFileProvider config)
+            IConfigFileProvider config,
+            IUserService userService)
             : base(options, logger, encoder)
         {
             _apiKey = config.ApiKey;
+            _userService = userService;
         }
 
         private string ParseApiKey()
@@ -62,20 +69,33 @@ namespace Readarr.Http.Authentication
 
             if (_apiKey == providedApiKey)
             {
-                var claims = new List<Claim>
-                {
-                    new Claim("ApiKey", "true")
-                };
+                return Task.FromResult(AuthenticateResult.Success(BuildTicket(null)));
+            }
 
-                var identity = new ClaimsIdentity(claims, Options.AuthenticationType);
-                var identities = new List<ClaimsIdentity> { identity };
-                var principal = new ClaimsPrincipal(identities);
-                var ticket = new AuthenticationTicket(principal, Options.Scheme);
+            var user = _userService.FindUserByApiKey(providedApiKey);
 
-                return Task.FromResult(AuthenticateResult.Success(ticket));
+            if (user != null)
+            {
+                return Task.FromResult(AuthenticateResult.Success(BuildTicket(user)));
             }
 
             return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        private AuthenticationTicket BuildTicket(User user)
+        {
+            var claims = new List<Claim> { new Claim("ApiKey", "true") };
+
+            if (user != null)
+            {
+                claims.Add(new Claim(ClaimTypes.Name, user.Username));
+                claims.Add(new Claim(UserIdClaim, user.Id.ToString()));
+                claims.Add(new Claim(UserRoleClaim, user.Role.ToString()));
+            }
+
+            var identity = new ClaimsIdentity(claims, Options.AuthenticationType);
+            var principal = new ClaimsPrincipal(identity);
+            return new AuthenticationTicket(principal, Options.Scheme);
         }
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)

@@ -1,0 +1,39 @@
+.usersHeader {
+  display: flex;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.username {
+  @add-mixin truncate;
+
+  flex: 0 1 200px;
+}
+
+.role {
+  @add-mixin truncate;
+
+  flex: 0 1 100px;
+}
+
+.email {
+  @add-mixin truncate;
+
+  flex: 0 1 260px;
+}
+
+.apiKey {
+  @add-mixin truncate;
+
+  flex: 0 1 320px;
+}
+
+.addUser {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 10px;
+}
+
+.addButton {
+  text-align: center;
+}

@@ -39,6 +39,7 @@ using NzbDrone.Core.RootFolders;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.ThingiProvider;
 using NzbDrone.Core.Update.History;
+using NzbDrone.Core.Users;
 using static Dapper.SqlMapper;
 
 namespace NzbDrone.Core.Datastore
@@ -198,6 +199,9 @@ namespace NzbDrone.Core.Datastore
 
             Mapper.Entity<DelayProfile>("DelayProfiles").RegisterModel();
             Mapper.Entity<User>("Users").RegisterModel();
+            Mapper.Entity<UserBookProgress>("UserBookProgress").RegisterModel();
+            Mapper.Entity<UserBookmark>("UserBookmarks").RegisterModel();
+            Mapper.Entity<UserFavorite>("UserFavorites").RegisterModel();
             Mapper.Entity<CommandModel>("Commands").RegisterModel()
                   .Ignore(c => c.Message);
 

@@ -27,6 +27,7 @@ import releaseProfiles from './Settings/releaseProfiles';
 import remotePathMappings from './Settings/remotePathMappings';
 import rootFolders from './Settings/rootFolders';
 import ui from './Settings/ui';
+import users from './Settings/users';
 
 export * from './Settings/customFormatSpecifications.js';
 export * from './Settings/customFormats';
@@ -54,6 +55,7 @@ export * from './Settings/remotePathMappings';
 export * from './Settings/rootFolders';
 export * from './Settings/development';
 export * from './Settings/ui';
+export * from './Settings/users';
 
 //
 // Variables
@@ -91,7 +93,8 @@ export const defaultState = {
   remotePathMappings: remotePathMappings.defaultState,
   rootFolders: rootFolders.defaultState,
   development: development.defaultState,
-  ui: ui.defaultState
+  ui: ui.defaultState,
+  users: users.defaultState
 };
 
 export const persistState = [
@@ -137,7 +140,8 @@ export const actionHandlers = handleThunks({
   ...remotePathMappings.actionHandlers,
   ...rootFolders.actionHandlers,
   ...development.actionHandlers,
-  ...ui.actionHandlers
+  ...ui.actionHandlers,
+  ...users.actionHandlers
 });
 
 //
@@ -174,6 +178,7 @@ export const reducers = createHandleActions({
   ...remotePathMappings.reducers,
   ...rootFolders.reducers,
   ...development.reducers,
-  ...ui.reducers
+  ...ui.reducers,
+  ...users.reducers
 
 }, defaultState, section);

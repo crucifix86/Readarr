@@ -89,6 +89,7 @@ Defaults to `https://api.bookinfo.pro` (community-hosted [rreading-glasses](http
 Known gaps we plan to fix (not-yet-started):
 
 - **Omnibus/multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
+- **Per-author series filter** — when you add an author, Readarr pulls the entire bibliography. Most readers want specific series only (e.g. Terry Brooks's Shannara + Landover but not every standalone tie-in). Workaround today is Import Lists pointed at curated Goodreads/Hardcover lists. Proper fix: add a monitored-series allowlist per author, with the refresh flow honoring it.
 - Dedicated self-hosted metadata server (user-owned alternative to `api.bookinfo.pro`)
 
 ## Contributing / building locally

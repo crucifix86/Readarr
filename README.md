@@ -94,6 +94,7 @@ Known gaps we plan to fix (not-yet-started):
 
 - **Omnibus/multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
 - **Per-author series filter** — when you add an author, Readarr pulls the entire bibliography. Most readers want specific series only (e.g. Terry Brooks's Shannara + Landover but not every standalone tie-in). Workaround today is Import Lists pointed at curated Goodreads/Hardcover lists. Proper fix: add a monitored-series allowlist per author, with the refresh flow honoring it.
+- **Reader + OPDS endpoint built into Readarr** — Readarr currently only catalogs and downloads; it doesn't serve books. To read on mobile/desktop you stand up a second server (Kavita, Calibre-Web, etc.). Natural extension: add an OPDS feed endpoint (standard spec, any ebook reader supports it — Moon+ Reader, KyBook, etc.) and a basic in-browser ebook reader. Eliminates the second-container requirement and lets Readarr own the end-to-end flow. Would also need per-user auth/progress which Readarr doesn't currently have granular enough — touches user model too.
 - Dedicated self-hosted metadata server (user-owned alternative to `api.bookinfo.pro`)
 
 ## Contributing / building locally

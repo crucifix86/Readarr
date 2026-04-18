@@ -37,8 +37,8 @@
   @add-mixin truncate;
 
   flex: 1 1 auto;
-  font-family: var(--defaultMonoFontFamily, monospace);
   font-size: 12px;
+  font-family: var(--defaultMonoFontFamily, monospace);
 }
 
 .apiKeyAction {

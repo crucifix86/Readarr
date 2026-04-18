@@ -8,8 +8,8 @@
 .toolbar {
   display: flex;
   align-items: center;
-  height: 42px;
   padding: 0 12px;
+  height: 42px;
   border-bottom: 1px solid var(--borderColor);
   background-color: var(--pageBackground, #fff);
 }
@@ -46,9 +46,9 @@
 
 .sidebarHeader {
   margin-bottom: 6px;
+  text-transform: uppercase;
   font-weight: bold;
   font-size: 13px;
-  text-transform: uppercase;
 }
 
 .sidebarList {
@@ -58,8 +58,8 @@
 
 .sidebarItem {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   padding: 4px 0;
   font-size: 13px;
 }

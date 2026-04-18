@@ -32,6 +32,26 @@
       };
     </script>
 
+    <script>
+      (function () {
+        function show(message) {
+          var el = document.getElementById('reader-root');
+          if (!el) return;
+          el.innerHTML = '<pre style="padding:24px;color:#f77;font-family:monospace;white-space:pre-wrap;overflow-x:auto;margin:0">Reader boot error:\n\n' +
+            String(message).replace(/</g, '&lt;') + '</pre>';
+        }
+        window.addEventListener('error', function (e) {
+          var line = e.filename ? ' at ' + e.filename + ':' + e.lineno + ':' + e.colno : '';
+          var stack = (e.error && e.error.stack) ? '\n\n' + e.error.stack : '';
+          show((e.message || 'unknown error') + line + stack);
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason || {};
+          show('Unhandled promise rejection: ' + (r.message || r) + (r.stack ? '\n\n' + r.stack : ''));
+        });
+      })();
+    </script>
+
     <% for (key in htmlWebpackPlugin.files.js) { %><script type="text/javascript" src="<%= htmlWebpackPlugin.files.js[key] %>" data-no-hash></script><% } %>
     <% for (key in htmlWebpackPlugin.files.css) { %><link href="<%= htmlWebpackPlugin.files.css[key] %>" rel="stylesheet"></link><% } %>
 

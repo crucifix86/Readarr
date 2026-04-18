@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using FluentValidation;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Authentication;
@@ -15,12 +14,10 @@ namespace Readarr.Api.V1.Users
     public class UserController : RestController<UserResource>
     {
         private readonly IUserService _userService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserController(IUserService userService, IHttpContextAccessor httpContextAccessor)
+        public UserController(IUserService userService)
         {
             _userService = userService;
-            _httpContextAccessor = httpContextAccessor;
 
             SharedValidator.RuleFor(u => u.Username).NotEmpty();
             PostValidator.RuleFor(u => u.Password).NotEmpty();
@@ -96,8 +93,7 @@ namespace Readarr.Api.V1.Users
 
         private void RequireAdmin()
         {
-            var ctx = _httpContextAccessor.HttpContext;
-            var principal = ctx?.User;
+            var principal = HttpContext?.User;
 
             if (principal == null)
             {

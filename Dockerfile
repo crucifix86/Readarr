@@ -42,7 +42,8 @@ ARG PackageOwner=faustvii
 ARG PackageRepo=readarr
 
 ENV COMPlus_EnableDiagnostics=0 \
-    READARR__UPDATE__BRANCH=${BRANCH}
+    READARR__UPDATE__BRANCH=${BRANCH} \
+    ASPNETCORE_ENVIRONMENT=Production
 
 USER root
 WORKDIR /app

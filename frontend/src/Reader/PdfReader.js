@@ -1,6 +1,6 @@
+import * as pdfjsLib from 'pdfjs-dist/build/pdf.min.mjs';
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/build/pdf.min.mjs';
 import Icon from 'Components/Icon';
 import Link from 'Components/Link/Link';
 import { icons } from 'Helpers/Props';
@@ -154,19 +154,27 @@ class PdfReader extends Component {
     return (
       <div className={styles.reader}>
         <div className={styles.toolbar}>
-          <Link className={styles.toolbarButton} onPress={this.onToggleSidebar} title="Bookmarks">
+          <Link className={styles.toolbarButton} onPress={this.onToggleSidebar}
+            title="Bookmarks"
+          >
             <Icon name={icons.MONITORED} />
           </Link>
-          <Link className={styles.toolbarButton} onPress={this.onPrev} title="Previous">
+          <Link className={styles.toolbarButton} onPress={this.onPrev}
+            title="Previous"
+          >
             <Icon name={icons.ARROW_LEFT} />
           </Link>
           <div className={styles.pageIndicator}>
             {page} / {totalPages || '…'}
           </div>
-          <Link className={styles.toolbarButton} onPress={this.onNext} title="Next">
+          <Link className={styles.toolbarButton} onPress={this.onNext}
+            title="Next"
+          >
             <Icon name={icons.ARROW_RIGHT} />
           </Link>
-          <Link className={styles.toolbarButton} onPress={this.onAddBookmark} title="Bookmark page">
+          <Link className={styles.toolbarButton} onPress={this.onAddBookmark}
+            title="Bookmark page"
+          >
             <Icon name={icons.ADD} />
           </Link>
         </div>

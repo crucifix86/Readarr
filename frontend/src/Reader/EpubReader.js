@@ -1,6 +1,6 @@
+import ePub from 'epubjs';
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
-import ePub from 'epubjs';
 import Icon from 'Components/Icon';
 import Link from 'Components/Link/Link';
 import { icons } from 'Helpers/Props';
@@ -33,9 +33,9 @@ class EpubReader extends Component {
       manager: 'default'
     });
 
-    const displayPromise = this.props.initialLocation
-      ? this.rendition.display(this.props.initialLocation)
-      : this.rendition.display();
+    const displayPromise = this.props.initialLocation ?
+      this.rendition.display(this.props.initialLocation) :
+      this.rendition.display();
 
     displayPromise.catch(() => {
       this.rendition.display();
@@ -162,16 +162,24 @@ class EpubReader extends Component {
     return (
       <div className={styles.reader}>
         <div className={styles.toolbar}>
-          <Link className={styles.toolbarButton} onPress={this.onToggleSidebar} title="Table of contents">
+          <Link className={styles.toolbarButton} onPress={this.onToggleSidebar}
+            title="Table of contents"
+          >
             <Icon name={icons.OVERVIEW} />
           </Link>
-          <Link className={styles.toolbarButton} onPress={this.onPrev} title="Previous">
+          <Link className={styles.toolbarButton} onPress={this.onPrev}
+            title="Previous"
+          >
             <Icon name={icons.ARROW_LEFT} />
           </Link>
-          <Link className={styles.toolbarButton} onPress={this.onNext} title="Next">
+          <Link className={styles.toolbarButton} onPress={this.onNext}
+            title="Next"
+          >
             <Icon name={icons.ARROW_RIGHT} />
           </Link>
-          <Link className={styles.toolbarButton} onPress={this.onAddBookmark} title="Bookmark current location">
+          <Link className={styles.toolbarButton} onPress={this.onAddBookmark}
+            title="Bookmark current location"
+          >
             <Icon name={icons.MONITORED} />
           </Link>
         </div>

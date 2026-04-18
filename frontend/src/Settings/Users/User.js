@@ -61,7 +61,7 @@ class User extends Component {
       apiKey
     } = this.props;
 
-    const masked = apiKey ? apiKey.slice(0, 4) + '…' + apiKey.slice(-4) : '';
+    const masked = apiKey ? `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}` : '';
 
     return (
       <div className={classNames(styles.user)}>

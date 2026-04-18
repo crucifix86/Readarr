@@ -32,7 +32,7 @@ RUN if [ -n "$VERSION" ]; then \
 RUN chmod +x build.sh && ./build.sh --all
 
 # Stage 2: Final Runtime Image
-FROM docker.io/library/alpine:3.22
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
 
 ARG TARGETARCH
 ARG VENDOR
@@ -47,13 +47,11 @@ ENV COMPlus_EnableDiagnostics=0 \
 USER root
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies (aspnet:8.0-alpine already provides .NET)
 RUN apk add --no-cache \
         bash \
-        ca-certificates \
         catatonit \
         coreutils \
-        icu-libs \
         libintl \
         nano \
         sqlite-libs \

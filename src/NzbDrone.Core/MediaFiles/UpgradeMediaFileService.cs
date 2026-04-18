@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
@@ -47,7 +48,17 @@ namespace NzbDrone.Core.MediaFiles
         public BookFileMoveResult UpgradeBookFile(BookFile bookFile, LocalBook localBook, bool copyOnly = false)
         {
             var moveFileResult = new BookFileMoveResult();
-            var existingFiles = localBook.Book.BookFiles.Value;
+
+            if (localBook?.Book == null || localBook.Author?.Path == null)
+            {
+                _logger.Warn("Skipping upgrade for {0}: missing book or author metadata (book={1}, author={2})",
+                    bookFile?.Path ?? "<unknown>",
+                    localBook?.Book?.Title ?? "null",
+                    localBook?.Author?.Name ?? "null");
+                return moveFileResult;
+            }
+
+            var existingFiles = localBook.Book.BookFiles.Value ?? new List<BookFile>();
 
             var rootFolderPath = _diskProvider.GetParentFolder(localBook.Author.Path);
             var rootFolder = _rootFolderService.GetBestRootFolder(rootFolderPath);

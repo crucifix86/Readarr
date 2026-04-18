@@ -82,6 +82,7 @@ Defaults to `https://api.bookinfo.pro` (community-hosted [rreading-glasses](http
 - **Skip Book Matching** accepts every import by design. If it picks a wrong target for a sloppily-named file, you'll end up with the file in the wrong author/book path — manual cleanup. Leave it off and raise the threshold to 0.35-0.50 if you want a middle ground.
 - **Duplicate rejection**: Readarr won't re-import a file whose size matches something already in the library. If you re-download a book, clear the existing file first.
 - **Live metadata tests** are marked `[Explicit]` and skip in CI. Run them manually when validating metadata-source changes.
+- **"Failed to import N files" alongside a successful grab** is cosmetic. NZB packages typically ship `.par2`, `.nfo`, cover `.jpg` etc. beside the actual `.epub`/`.mobi`/`.azw3`. Readarr walks every file in the completed folder; only the book is importable, the rest get counted as "failed" but that's just the count of ignored extras — the book itself lands fine.
 
 ## Roadmap
 

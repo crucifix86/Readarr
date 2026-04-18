@@ -69,7 +69,11 @@ module.exports = (env) => {
     output: {
       path: distFolder,
       publicPath: '/',
-      filename: isProduction ? '[name]-[contenthash].js' : '[name].js',
+      filename: (pathData) => {
+        const prefix = pathData.chunk && pathData.chunk.name === 'reader' ? 'Content/' : '';
+        return isProduction ? `${prefix}[name]-[contenthash].js` : `${prefix}[name].js`;
+      },
+      chunkFilename: isProduction ? '[name]-[contenthash].js' : '[name].js',
       sourceMapFilename: '[file].map'
     },
 

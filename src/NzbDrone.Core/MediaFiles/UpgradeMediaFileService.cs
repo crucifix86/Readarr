@@ -58,7 +58,7 @@ namespace NzbDrone.Core.MediaFiles
                 return moveFileResult;
             }
 
-            var existingFiles = localBook.Book.BookFiles.Value ?? new List<BookFile>();
+            var existingFiles = localBook.Book.BookFiles?.Value ?? new List<BookFile>();
 
             var rootFolderPath = _diskProvider.GetParentFolder(localBook.Author.Path);
             var rootFolder = _rootFolderService.GetBestRootFolder(rootFolderPath);

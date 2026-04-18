@@ -94,7 +94,11 @@ Known gaps we plan to fix (not-yet-started):
 
 - **Omnibus/multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
 - **Per-author series filter** — when you add an author, Readarr pulls the entire bibliography. Most readers want specific series only (e.g. Terry Brooks's Shannara + Landover but not every standalone tie-in). Workaround today is Import Lists pointed at curated Goodreads/Hardcover lists. Proper fix: add a monitored-series allowlist per author, with the refresh flow honoring it.
-- **Reader + OPDS endpoint built into Readarr** — Readarr currently only catalogs and downloads; it doesn't serve books. To read on mobile/desktop you stand up a second server (Kavita, Calibre-Web, etc.). Natural extension: add an OPDS feed endpoint (standard spec, any ebook reader supports it — Moon+ Reader, KyBook, etc.) and a basic in-browser ebook reader. Eliminates the second-container requirement and lets Readarr own the end-to-end flow. Would also need per-user auth/progress which Readarr doesn't currently have granular enough — touches user model too.
+- **Reader + OPDS endpoint built into Readarr** — eliminates the second-container requirement and lets Readarr own the end-to-end flow.
+  - ✅ **Phase 1 done (commit `1b68b88`)**: OPDS 1.2 catalog at `/opds` — root / authors / author detail / recently added / search / download. Works with Moon+ Reader, KyBook, KOReader, Aldiko, Calibre Companion. Auth via global API key.
+  - **Phase 2a (next)**: multi-user model — extend the `Users` table with Role + per-user ApiKey + Email, add tables for per-user bookmarks / progress / favorites, admin CRUD in Settings → Users.
+  - **Phase 2b**: in-browser reader at `/read/:bookFileId` with epub.js + pdf.js, saves progress/bookmarks to the per-user tables as you read.
+  - **Phase 2c**: personalize OPDS feeds by authenticated user (Favorites feed, Currently Reading feed) so the same backend powers the web reader and any future native app equally.
 - Dedicated self-hosted metadata server (user-owned alternative to `api.bookinfo.pro`)
 
 ## Contributing / building locally

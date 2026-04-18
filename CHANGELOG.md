@@ -4,6 +4,18 @@ Fork-specific changes on top of upstream Readarr 0.4.19 (retired). This log is a
 
 ## Unreleased (develop)
 
+### Serving books (new capability)
+- **OPDS 1.2 catalog** at `/opds` exposing the library to any OPDS-aware ebook reader (Moon+ Reader, KyBook, KOReader, Aldiko, Calibre Companion). Endpoints:
+  - `/opds` — root navigation feed
+  - `/opds/authors` — paged author list
+  - `/opds/author/{id}` — books by author
+  - `/opds/books/recent` — recently added
+  - `/opds/search?query=...` — title/author substring search
+  - `/opds/search.xml` — OpenSearch description
+  - `/opds/download/{bookFileId}` — file download with correct MIME (epub/pdf/mobi/azw/azw3/cbz/cbr/txt)
+- Auth: existing API key via `X-Api-Key` header or `?apikey=` query param
+- SPA fallback route updated to exclude `/opds/*` so the OPDS controller wins
+
 ### Runtime
 - Target framework bumped `net6.0` → `net8.0` (upstream was EOL)
 - Docker base images bumped to `mcr.microsoft.com/dotnet/aspnet:8.0-alpine`

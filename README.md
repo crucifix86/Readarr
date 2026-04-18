@@ -20,26 +20,77 @@ Not affiliated with, endorsed by, or related to the Servarr team.
 
 ```bash
 docker run -d --name readarr \
+  --restart unless-stopped \
   -p 8787:8787 \
+  -e TZ=America/Los_Angeles \
+  --user 1000:1000 \
   -v ~/readarr-config:/config \
+  -v /path/to/books:/books \
+  -v /path/to/downloads:/data \
   ghcr.io/crucifix86/readarr:latest
 ```
 
-Then open http://localhost:8787. The metadata URL is pre-wired to `api.bookinfo.pro`; override it in Settings → General → Development → Metadata Source if you run your own.
+Then open http://localhost:8787. The metadata URL is pre-wired to `api.bookinfo.pro`; override it in **Settings → General → Development → Metadata Source** if you run your own.
 
-## Major Features Include
+On Unraid, use `--user 99:100` (nobody:users).
 
-* Can watch for better quality of the ebooks and audiobooks you have and do an automatic upgrade. *e.g. from PDF to AZW3*
-* Automatically detects new books
-* Can scan your existing library and download any missing books
-* Automatic failed download handling will try another release if one fails
-* Manual search so you can pick any release or to see why a release was not downloaded automatically
-* Advanced customization for profiles, such that Readarr will always download the copy you want
-* Fully configurable book renaming
-* SABnzbd, NZBGet, QBittorrent, Deluge, rTorrent, Transmission, uTorrent, and other download clients are supported and integrated
-* Full integration with Calibre (add to library, conversion) (Requires Calibre Content Server)
-* And a beautiful UI
+## What this fork adds on top of upstream
+
+Runtime modernization:
+- Targets **.NET 8** (upstream was .NET 6, long EOL)
+- GitHub Actions updated to Node 24
+- Docker base images refreshed (`dotnet/aspnet:8.0-alpine`)
+- Container defaults to `ASPNETCORE_ENVIRONMENT=Production` so modern indexers that use 302 redirects (nzbgeek, nzbfinder) work without manual env tweaks
+
+Import engine:
+- **Book Match Threshold** slider in *Settings → Media Management* (advanced) — tune how strict the identification gate is
+- **Skip Book Matching** toggle — bypass the match-quality gate entirely when you want to force imports and curate manually
+- Defensive null-checks around the upgrade pipeline so a single bad match no longer crashes the whole `DownloadedBooksScan` with a `NullReferenceException`
+- Edition fallback when skip-matching imports a book without a monitored edition
+
+Indexers (via ricetim):
+- Native **Bibliotik** (cookie-based auth, all known auth-mode bugs fixed)
+- Native **MyAnonamouse** with language field parsing
+
+Download decisions:
+- **Prefer Larger Files** config to pick the bigger release when quality ties
+- **AllowedLanguages** filter on quality profiles (migration 043), with UI and manual-grab column
+
+UI / navigation:
+- Search-Series button on the author details page
+
+API correctness (the biggest invisible fix):
+- `[FromBody]` added to every POST/PUT handler that takes a resource. ASP.NET Core 8 is stricter about inferring body binding from `IApiBehaviorMetadata` on generic base classes; without this fix, **every `/api/v1/config/*` PUT silently fails** on .NET 8 — the auth setup modal can't save, media management won't persist, host config goes nowhere. Symptoms look like the UI doing nothing when you click Save.
+
+## Metadata
+
+Defaults to `https://api.bookinfo.pro` (community-hosted [rreading-glasses](https://github.com/blampe/rreading-glasses)). Change it in *Settings → General → Development → Metadata Source* to point at your own instance.
+
+## Core classic features (inherited from upstream)
+
+* Watch for better-quality editions (e.g. PDF → AZW3) and auto-upgrade
+* Scan existing libraries for missing books
+* Failed-download retry to a different release
+* Manual search with per-release decision explanations
+* Quality profiles, metadata profiles, naming templates
+* Calibre integration (requires Calibre Content Server)
+* Native download client support: SABnzbd, NZBGet, QBittorrent, Deluge, rTorrent, Transmission, uTorrent, and more
+
+## Known edges / tradeoffs
+
+- **Skip Book Matching** accepts every import by design. If it picks a wrong target for a sloppily-named file, you'll end up with the file in the wrong author/book path — manual cleanup. Leave it off and raise the threshold to 0.35-0.50 if you want a middle ground.
+- **Duplicate rejection**: Readarr won't re-import a file whose size matches something already in the library. If you re-download a book, clear the existing file first.
+- **Live metadata tests** are marked `[Explicit]` and skip in CI. Run them manually when validating metadata-source changes.
+
+## Contributing / building locally
+
+See upstream Readarr docs for the general structure. The bits unique to this fork:
+- `Dockerfile` — multi-stage build, Alpine + .NET 8. Final image is `aspnet:8.0-alpine`.
+- `.github/workflows/docker-build.yml` — builds and pushes `:latest`, `:develop`, `:sha-<shortsha>` on every push to `develop`. Semantic-release tags produce versioned images too.
+- `build.sh --all` works locally once you have .NET 8 SDK + yarn.
 
 ## License
 
 * [GNU GPL v3](http://www.gnu.org/licenses/gpl.html)
+
+Derivative work of [Readarr](https://github.com/Readarr/Readarr) (GPLv3).

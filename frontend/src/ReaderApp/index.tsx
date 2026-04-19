@@ -4,6 +4,20 @@ import App from './App';
 
 import './styles.css';
 
+declare global {
+  interface Window {
+    readarrPreboot?: HTMLElement;
+  }
+}
+
+function note(step: string) {
+  if (window.readarrPreboot) {
+    window.readarrPreboot.textContent = step;
+  }
+}
+
+note('Bundle started executing');
+
 function showError(message: string) {
   const root = document.getElementById('reader-root');
   if (root) {
@@ -28,9 +42,13 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 try {
+  note('About to call ReactDOM.render');
   const root = document.getElementById('reader-root');
   if (root) {
     ReactDOM.render(<App />, root);
+    note(
+      'ReactDOM.render returned (if you see this, React did not replace the DOM)'
+    );
   } else {
     showError('reader-root element not found');
   }

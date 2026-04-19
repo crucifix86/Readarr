@@ -52,9 +52,11 @@ On Unraid, use `--user 99:100` (nobody:users).
 
 ### Mobile apps
 
-No Readarr-specific mobile app exists, but the generic Servarr client **[LunaSea](https://www.lunasea.app/)** (free, iOS + Android) supports Readarr alongside Sonarr/Radarr/Lidarr/Prowlarr. Add a Readarr profile, enter `http://<your-host>:8787` + your API key (from *Settings → General*), and you get a queue/history/manual-search/library-browse mobile UI.
+A dedicated mobile app for this fork is planned — it will talk to the per-user API surface we already built (`/reader/api/login` + per-user ApiKey + `/api/v1/user/me/*`), so the same backend powers the web reader portal, OPDS clients, and the forthcoming app equally. Until then:
 
-For *reading* on mobile, the reader portal at `http://<host>:8787/reader` is responsive (touch-friendly tap zones, off-canvas sidebar, swipe-to-turn). Or point any OPDS-aware reader (Moon+ Reader, KyBook, KOReader, etc.) at `http://<host>:8787/opds` — use a per-user ApiKey from Settings → Users for `/opds/me/favorites` + `/opds/me/reading` to work.
+- **Admin / download management**: the generic Servarr client **[LunaSea](https://www.lunasea.app/)** (free, iOS + Android) supports Readarr alongside Sonarr/Radarr/Lidarr/Prowlarr. Add a Readarr profile, enter `http://<your-host>:8787` + your API key (from *Settings → General*), and you get a queue/history/manual-search/library-browse mobile UI.
+- **Reading**: the reader portal at `http://<host>:8787/reader` is already mobile-responsive (touch-friendly tap zones, off-canvas sidebar, swipe-to-turn, works in any mobile browser).
+- **Reading in a native reader app**: point any OPDS-aware reader (Moon+ Reader, KyBook, KOReader, etc.) at `http://<host>:8787/opds`. Use a per-user ApiKey from Settings → Users if you want `/opds/me/favorites` + `/opds/me/reading` to show up.
 
 ## Reader portal (`/reader`)
 

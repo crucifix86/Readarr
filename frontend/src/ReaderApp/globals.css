@@ -300,9 +300,43 @@ ul {
   align-items: center;
   padding: 8px 12px;
   min-height: 44px;
-  border-bottom: 1px solid #2a2d36;
   background: #14161d;
   gap: 8px;
+}
+
+.readerChapterLabel {
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 0 8px;
+  min-width: 0;
+  text-align: center;
+}
+
+.readerChapterTitle {
+  overflow: hidden;
+  color: #e6e6e6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.readerChapterCount {
+  margin-top: 2px;
+  color: #9aa;
+  font-size: 11px;
+}
+
+.readerProgressTrack {
+  position: relative;
+  height: 3px;
+  background: #2a2d36;
+}
+
+.readerProgressFill {
+  height: 100%;
+  background: #0cf;
+  transition: width 0.2s ease;
 }
 
 .readerToolbar button {

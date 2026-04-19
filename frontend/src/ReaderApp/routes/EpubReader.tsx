@@ -1,5 +1,5 @@
 import ePub, { Book, NavItem, Rendition } from 'epubjs';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { apiFetch } from '../api';
 import { ReaderUser } from '../auth';
@@ -19,6 +19,19 @@ interface Props {
   initialLocation: string | null;
 }
 
+// Flatten the TOC tree so we can show "Chapter X of Y" counting all entries.
+function flattenToc(items: NavItem[]): NavItem[] {
+  const out: NavItem[] = [];
+  const walk = (list: NavItem[]) => {
+    for (const item of list) {
+      out.push(item);
+      if (item.subitems && item.subitems.length) walk(item.subitems);
+    }
+  };
+  walk(items);
+  return out;
+}
+
 function EpubReader(props: Props) {
   const history = useHistory();
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -33,6 +46,16 @@ function EpubReader(props: Props) {
     'loading'
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentHref, setCurrentHref] = useState<string | null>(null);
+  const [percent, setPercent] = useState<number | null>(null);
+
+  const flatToc = useMemo(() => flattenToc(toc), [toc]);
+  const chapterIndex = useMemo(() => {
+    if (!currentHref) return -1;
+    const bare = currentHref.split('#')[0];
+    return flatToc.findIndex((it) => (it.href || '').split('#')[0] === bare);
+  }, [flatToc, currentHref]);
+  const currentChapter = chapterIndex >= 0 ? flatToc[chapterIndex] : null;
 
   useEffect(() => {
     const host = viewerRef.current;
@@ -55,11 +78,14 @@ function EpubReader(props: Props) {
         // fragment instead of the finicky paginated iframe. Much more
         // reliable — this is what Kavita / KOReader-web / most robust
         // epub viewers use.
+        // scrolled-doc + default manager: each chapter is its own scrollable
+        // view. Prev/Next button loads adjacent chapters. Users get clear
+        // section boundaries instead of one endless scroll.
         rendition = book.renderTo(host, {
           width: '100%',
           height: '100%',
           flow: 'scrolled-doc',
-          manager: 'continuous',
+          manager: 'default',
           allowScriptedContent: false,
         });
         renditionRef.current = rendition;
@@ -114,20 +140,25 @@ function EpubReader(props: Props) {
 
       rendition.on(
         'relocated',
-        (location: { start?: { cfi: string; percentage?: number } }) => {
+        (location: {
+          start?: { cfi: string; href?: string; percentage?: number };
+        }) => {
           if (cancelled || !location?.start) return;
           const cfi = location.start.cfi;
-          const percent =
+          const href = location.start.href || null;
+          const pct =
             typeof location.start.percentage === 'number'
               ? location.start.percentage
               : null;
+          setCurrentHref(href);
+          setPercent(pct);
           if (saveTimerRef.current) {
             window.clearTimeout(saveTimerRef.current);
           }
           saveTimerRef.current = window.setTimeout(() => {
             apiFetch(props.user, `/user/me/progress/${props.bookFileId}`, {
               method: 'PUT',
-              body: JSON.stringify({ location: cfi, percent }),
+              body: JSON.stringify({ location: cfi, percent: pct }),
             }).catch(() => {
               /* noop */
             });
@@ -243,6 +274,20 @@ function EpubReader(props: Props) {
         >
           ◀
         </button>
+        <div className="readerChapterLabel">
+          {currentChapter ? (
+            <>
+              <div className="readerChapterTitle">{currentChapter.label}</div>
+              {flatToc.length > 0 && (
+                <div className="readerChapterCount">
+                  Chapter {chapterIndex + 1} of {flatToc.length}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="readerChapterTitle">&nbsp;</div>
+          )}
+        </div>
         <button
           type="button"
           onClick={onNext}
@@ -255,6 +300,18 @@ function EpubReader(props: Props) {
         <button type="button" onClick={onAddBookmark} aria-label="Bookmark">
           🔖
         </button>
+      </div>
+
+      <div className="readerProgressTrack">
+        <div
+          className="readerProgressFill"
+          style={{
+            width: `${Math.min(
+              100,
+              Math.max(0, Math.round((percent ?? 0) * 100))
+            )}%`,
+          }}
+        />
       </div>
 
       <div className="readerBody">

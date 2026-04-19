@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Books;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Users;
 using Readarr.Http;
 
@@ -16,14 +19,90 @@ namespace Readarr.Api.V1.Users
         private readonly IUserBookProgressRepository _progressRepo;
         private readonly IUserBookmarkRepository _bookmarkRepo;
         private readonly IUserFavoriteRepository _favoriteRepo;
+        private readonly IBookService _bookService;
+        private readonly IAuthorService _authorService;
+        private readonly IMediaFileService _mediaFileService;
 
         public UserMeController(IUserBookProgressRepository progressRepo,
                                 IUserBookmarkRepository bookmarkRepo,
-                                IUserFavoriteRepository favoriteRepo)
+                                IUserFavoriteRepository favoriteRepo,
+                                IBookService bookService,
+                                IAuthorService authorService,
+                                IMediaFileService mediaFileService)
         {
             _progressRepo = progressRepo;
             _bookmarkRepo = bookmarkRepo;
             _favoriteRepo = favoriteRepo;
+            _bookService = bookService;
+            _authorService = authorService;
+            _mediaFileService = mediaFileService;
+        }
+
+        public class ReaderLibraryItem
+        {
+            public int BookId { get; set; }
+            public string Title { get; set; }
+            public string AuthorName { get; set; }
+            public int? FirstBookFileId { get; set; }
+            public string FirstBookFileFormat { get; set; }
+            public bool IsFavorite { get; set; }
+            public double? ProgressPercent { get; set; }
+        }
+
+        [HttpGet("library")]
+        public ActionResult<List<ReaderLibraryItem>> GetLibrary()
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+
+            if (userId == null)
+            {
+                return BadRequest(new { message = "A per-user ApiKey is required for /user/me endpoints" });
+            }
+
+            var books = _bookService.GetAllBooks();
+            var authors = _authorService.GetAllAuthors().ToDictionary(a => a.Id);
+            var favIds = new HashSet<int>(_favoriteRepo.ForUser(userId.Value).Select(f => f.BookId));
+            var progressByFile = _progressRepo.ForUser(userId.Value)
+                .Where(p => p.Percent.HasValue)
+                .ToDictionary(p => p.BookFileId, p => p.Percent);
+
+            var result = new List<ReaderLibraryItem>(books.Count);
+
+            foreach (var book in books)
+            {
+                var files = _mediaFileService.GetFilesByBook(book.Id);
+                if (files == null || files.Count == 0)
+                {
+                    continue;
+                }
+
+                var primary = files.First();
+                string format = null;
+                if (!string.IsNullOrEmpty(primary.Path))
+                {
+                    var ext = Path.GetExtension(primary.Path);
+                    format = ext != null ? ext.TrimStart('.').ToLowerInvariant() : null;
+                }
+
+                string authorName = null;
+                if (authors.TryGetValue(book.AuthorId, out var author))
+                {
+                    authorName = author.Metadata?.Value?.Name;
+                }
+
+                result.Add(new ReaderLibraryItem
+                {
+                    BookId = book.Id,
+                    Title = book.Title,
+                    AuthorName = authorName ?? "Unknown",
+                    FirstBookFileId = primary.Id,
+                    FirstBookFileFormat = format,
+                    IsFavorite = favIds.Contains(book.Id),
+                    ProgressPercent = progressByFile.TryGetValue(primary.Id, out var pct) ? pct : null
+                });
+            }
+
+            return result.OrderBy(r => r.Title, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         [HttpGet("progress")]

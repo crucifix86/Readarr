@@ -16,6 +16,27 @@ Fork-specific changes on top of upstream Readarr 0.4.19 (retired). This log is a
 - Auth: existing API key via `X-Api-Key` header or `?apikey=` query param
 - SPA fallback route updated to exclude `/opds/*` so the OPDS controller wins
 
+### Multi-user model (Phase 2a)
+- Migration 044 extends the `Users` table with `Role`, `ApiKey`, `Email`, `CreatedAt` and creates `UserBookProgress`, `UserBookmarks`, `UserFavorites`. Any existing legacy user is seeded as `Admin` with a freshly generated ApiKey on first boot.
+- `ApiKeyAuthenticationHandler` now accepts any `User.ApiKey` alongside the global config key; per-user requests attach `ReadarrUserId` + `ReadarrUserRole` claims.
+- `UserController` at `/api/v1/user` — admin-gated CRUD + `POST /{id}/regenerateApiKey`.
+- `UserMeController` at `/api/v1/user/me/*` — per-user progress, bookmarks, favorites, plus a one-call `/library` endpoint that joins books + first-bookfile + favorites + progress in one trip.
+- **Settings → Users** admin page in the main UI (list, add/edit/delete, role select, reveal/regenerate ApiKey).
+
+### Reader portal (Phase 3 + Phase 4)
+- Separate **`/reader`** end-user webapp with its own bundle (second webpack entry, `frontend/src/ReaderApp/`). Not built into the admin UI — admins provision users in Settings → Users, then users sign in at `/reader`.
+- Login endpoint `POST /reader/api/login` → `{id, username, role, apiKey}`. Client stores the ApiKey in localStorage and uses it for all subsequent `/api/v1/*` calls. 401 clears the session.
+- Pages: Library (responsive grid with covers + progress bars + favorite toggle), Currently Reading (books with 0 < progress < 99%), Favorites, Read.
+- Mobile-friendly: auto-fit grid, off-canvas sidebar, bottom-stacked nav on narrow screens.
+- **Server-side EPUB rendering** (Kavita-style). Backend parses the epub zip directly (`System.IO.Compression.ZipArchive` + HtmlAgilityPack + ExCSS — can't use VersOne.Epub NuGet because the local `EpubTag` namespace is already a fork of it and collides on identical fully-qualified type names), serves a scoped HTML fragment per spine item, proxies embedded images/CSS/fonts through `/api/v1/user/me/epub/{id}/resource`.
+  - `GET /info` — title, author, page count, per-page byte sizes (for skip-empty).
+  - `GET /chapters` — parsed TOC (EPUB3 nav.xhtml or NCX fallback, suffix-match fallback for Calibre `../` references).
+  - `GET /page/{N}` — `<style>...</style><div class="book-content">...</div>` fragment with CSS scoped to `.book-content` (every selector prefixed, `body`/`html` rewritten), `url(...)` and `<img src>` rewritten to the resource proxy, self-closing `<script/>` / `<title/>` pre-escaped so HAP doesn't mangle them, in-book `<a href>` rewritten to `data-epub-href` so the client can intercept.
+  - `GET /resource` — streams the named file from the epub with suffix-match fallback.
+- Frontend reads pages via `fetch` → `dangerouslySetInnerHTML`. No iframe, no client-side epub library. Keyboard (←/→/PgUp/PgDn/Esc), chapter label + "Chapter X of Y" + page number, progress bar, TOC sidebar, bookmarks.
+- **"Skip empty pages" toggle** in the reader toolbar. Flips per-user in localStorage. When on, Next/Prev skip spine items under 2 KB (the pattern Calibre "split" epubs use for chapter-heading fragments), so you don't have to click past 20 empty pages to reach the actual text.
+- Inline boot error handler in the reader HTML so a broken bundle shows the actual stack trace in the page instead of a blank screen (diagnostic tooling from the build-out, left in place).
+
 ### Runtime
 - Target framework bumped `net6.0` → `net8.0` (upstream was EOL)
 - Docker base images bumped to `mcr.microsoft.com/dotnet/aspnet:8.0-alpine`

@@ -41,19 +41,24 @@ window.addEventListener('unhandledrejection', (e) => {
   );
 });
 
-try {
-  note('About to call ReactDOM.render');
-  const root = document.getElementById('reader-root');
-  if (root) {
+function mount() {
+  try {
+    note('About to call ReactDOM.render');
+    const root = document.getElementById('reader-root');
+    if (!root) {
+      showError('reader-root element not found');
+      return;
+    }
     ReactDOM.render(<App />, root);
-    note(
-      'ReactDOM.render returned (if you see this, React did not replace the DOM)'
+  } catch (err) {
+    showError(
+      err instanceof Error ? `${err.message}\n\n${err.stack}` : String(err)
     );
-  } else {
-    showError('reader-root element not found');
   }
-} catch (err) {
-  showError(
-    err instanceof Error ? `${err.message}\n\n${err.stack}` : String(err)
-  );
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mount);
+} else {
+  mount();
 }

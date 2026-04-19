@@ -35,62 +35,88 @@ function EpubReader(props: Props) {
   const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
+    const host = viewerRef.current;
+    if (!host) return undefined;
+
+    let cancelled = false;
     const book = ePub(props.contentUrl, { openAs: 'epub' });
     bookRef.current = book;
 
-    const rendition = book.renderTo(viewerRef.current as HTMLElement, {
-      width: '100%',
-      height: '100%',
-      flow: 'paginated',
-      manager: 'default',
-    });
-    renditionRef.current = rendition;
-
-    (props.initialLocation
-      ? rendition.display(props.initialLocation)
-      : rendition.display()
-    ).catch(() => {
-      rendition.display();
-    });
-
-    book.loaded.navigation.then((nav) => setToc(nav.toc || []));
-
-    rendition.on(
-      'relocated',
-      (location: { start?: { cfi: string; percentage?: number } }) => {
-        if (!location?.start) {
-          return;
-        }
-
-        const cfi = location.start.cfi;
-        const percent =
-          typeof location.start.percentage === 'number'
-            ? location.start.percentage
-            : null;
-
-        if (saveTimerRef.current) {
-          window.clearTimeout(saveTimerRef.current);
-        }
-        saveTimerRef.current = window.setTimeout(() => {
-          apiFetch(props.user, `/user/me/progress/${props.bookFileId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ location: cfi, percent }),
-          }).catch(() => {
-            /* noop */
-          });
-        }, 1200);
+    // Wait for the host to have a non-zero size. Paginated epub.js
+    // getComputedStyle()s the iframe immediately after renderTo(); if the
+    // host is 0x0 it NPEs on "writing-mode".
+    const start = () => {
+      if (cancelled) return;
+      if (host.clientWidth === 0 || host.clientHeight === 0) {
+        window.requestAnimationFrame(start);
+        return;
       }
-    );
 
-    // eslint-disable-next-line no-use-before-define
-    loadBookmarks();
+      const rendition = book.renderTo(host, {
+        width: '100%',
+        height: '100%',
+        flow: 'paginated',
+        manager: 'default',
+        allowScriptedContent: true,
+      });
+      renditionRef.current = rendition;
+
+      (props.initialLocation
+        ? rendition.display(props.initialLocation)
+        : rendition.display()
+      ).catch(() => {
+        try {
+          rendition.display();
+        } catch {
+          /* noop */
+        }
+      });
+
+      book.loaded.navigation
+        .then((nav) => {
+          if (!cancelled) setToc(nav.toc || []);
+        })
+        .catch(() => {
+          /* noop */
+        });
+
+      rendition.on(
+        'relocated',
+        (location: { start?: { cfi: string; percentage?: number } }) => {
+          if (cancelled || !location?.start) return;
+
+          const cfi = location.start.cfi;
+          const percent =
+            typeof location.start.percentage === 'number'
+              ? location.start.percentage
+              : null;
+
+          if (saveTimerRef.current) {
+            window.clearTimeout(saveTimerRef.current);
+          }
+          saveTimerRef.current = window.setTimeout(() => {
+            apiFetch(props.user, `/user/me/progress/${props.bookFileId}`, {
+              method: 'PUT',
+              body: JSON.stringify({ location: cfi, percent }),
+            }).catch(() => {
+              /* noop */
+            });
+          }, 1200);
+        }
+      );
+
+      // eslint-disable-next-line no-use-before-define
+      loadBookmarks();
+    };
+
+    start();
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
-        rendition.next();
+        renditionRef.current?.next();
       }
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        rendition.prev();
+        renditionRef.current?.prev();
       }
       if (e.key === 'Escape') {
         history.goBack();
@@ -99,12 +125,23 @@ function EpubReader(props: Props) {
     document.addEventListener('keydown', onKeyDown);
 
     return () => {
+      cancelled = true;
       document.removeEventListener('keydown', onKeyDown);
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
       }
-      rendition.destroy();
-      book.destroy();
+      // epub.js resize observers sometimes fire after the iframe is torn down
+      // and NPE on getComputedStyle. Swallow — we're unmounting anyway.
+      try {
+        renditionRef.current?.destroy();
+      } catch {
+        /* noop */
+      }
+      try {
+        book.destroy();
+      } catch {
+        /* noop */
+      }
     };
     // Re-mount if bookFileId or contentUrl changes (which only happens on route change)
     // eslint-disable-next-line react-hooks/exhaustive-deps

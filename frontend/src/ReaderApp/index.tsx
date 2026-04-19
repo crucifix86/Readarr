@@ -7,6 +7,8 @@ import './globals.css';
 declare global {
   interface Window {
     readarrPreboot?: HTMLElement;
+    readarrBooted?: boolean;
+    readarrBootError?: (msg: string) => void;
   }
 }
 
@@ -50,6 +52,9 @@ function mount() {
       return;
     }
     ReactDOM.render(<App />, root);
+    // Flip the boot flag so the window error handler stops replacing
+    // the DOM on post-mount runtime errors.
+    window.readarrBooted = true;
   } catch (err) {
     showError(
       err instanceof Error ? `${err.message}\n\n${err.stack}` : String(err)

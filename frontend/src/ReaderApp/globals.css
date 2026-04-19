@@ -387,8 +387,7 @@ ul {
 .readerViewer {
   position: relative;
   flex: 1 1 auto;
-  overflow: auto;
-  padding: 16px;
+  overflow: hidden;
   background: #fafafa;
   color: #222;
 }
@@ -396,6 +395,10 @@ ul {
 .readerEpubHost {
   width: 100%;
   height: 100%;
+}
+
+.readerEpubHost iframe {
+  border: 0;
 }
 
 .readerPdfViewer {

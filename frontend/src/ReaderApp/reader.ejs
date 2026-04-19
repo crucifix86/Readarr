@@ -33,22 +33,28 @@
     </script>
 
     <script>
+      // Boot-only error handler. Cleared once React mounts — after that,
+      // runtime errors go to the console like any normal SPA.
       (function () {
-        function show(message) {
+        window.readarrBootError = function (message) {
           var el = document.getElementById('reader-root');
           if (!el) return;
           el.innerHTML = '<pre style="padding:24px;color:#f77;font-family:monospace;white-space:pre-wrap;overflow-x:auto;margin:0">Reader boot error:\n\n' +
             String(message).replace(/</g, '&lt;') + '</pre>';
-        }
-        window.addEventListener('error', function (e) {
+        };
+        function bootError(e) {
+          if (window.readarrBooted) return;
           var line = e.filename ? ' at ' + e.filename + ':' + e.lineno + ':' + e.colno : '';
           var stack = (e.error && e.error.stack) ? '\n\n' + e.error.stack : '';
-          show((e.message || 'unknown error') + line + stack);
-        }, true);
-        window.addEventListener('unhandledrejection', function (e) {
+          window.readarrBootError((e.message || 'unknown error') + line + stack);
+        }
+        function bootReject(e) {
+          if (window.readarrBooted) return;
           var r = e.reason || {};
-          show('Unhandled promise rejection: ' + (r.message || r) + (r.stack ? '\n\n' + r.stack : ''));
-        });
+          window.readarrBootError('Unhandled promise rejection: ' + (r.message || r) + (r.stack ? '\n\n' + r.stack : ''));
+        }
+        window.addEventListener('error', bootError, true);
+        window.addEventListener('unhandledrejection', bootReject);
       })();
     </script>
 

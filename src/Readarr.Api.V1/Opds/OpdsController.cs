@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.MediaFiles;
+using NzbDrone.Core.Users;
+using Readarr.Api.V1.Users;
 using CoreAuthor = NzbDrone.Core.Books.Author;
 using IOPath = System.IO.Path;
 
@@ -27,25 +29,34 @@ namespace Readarr.Api.V1.Opds
     {
         private readonly IAuthorService _authorService;
         private readonly IBookService _bookService;
+        private readonly IEditionService _editionService;
         private readonly IMediaFileService _mediaFileService;
         private readonly IDiskProvider _diskProvider;
+        private readonly IUserFavoriteRepository _favoriteRepo;
+        private readonly IUserBookProgressRepository _progressRepo;
 
         public OpdsController(
             IAuthorService authorService,
             IBookService bookService,
+            IEditionService editionService,
             IMediaFileService mediaFileService,
-            IDiskProvider diskProvider)
+            IDiskProvider diskProvider,
+            IUserFavoriteRepository favoriteRepo,
+            IUserBookProgressRepository progressRepo)
         {
             _authorService = authorService;
             _bookService = bookService;
+            _editionService = editionService;
             _mediaFileService = mediaFileService;
             _diskProvider = diskProvider;
+            _favoriteRepo = favoriteRepo;
+            _progressRepo = progressRepo;
         }
 
         [HttpGet("")]
         public IActionResult Root()
         {
-            var entries = new[]
+            var entries = new List<XElement>
             {
                 OpdsFeedBuilder.NavEntry(
                     "opds:authors",
@@ -59,6 +70,23 @@ namespace Readarr.Api.V1.Opds
                     "Recently added books")
             };
 
+            // Only surface the per-user feeds when there's actually a per-user
+            // identity on the request. Global ApiKey reads of /opds get the
+            // plain library view so non-reader clients don't see dead links.
+            if (UserMeHelpers.CurrentUserId(HttpContext).HasValue)
+            {
+                entries.Add(OpdsFeedBuilder.NavEntry(
+                    "opds:me:reading",
+                    "Currently Reading",
+                    "/opds/me/reading",
+                    "Books you're partway through"));
+                entries.Add(OpdsFeedBuilder.NavEntry(
+                    "opds:me:favorites",
+                    "Favorites",
+                    "/opds/me/favorites",
+                    "Books you've starred"));
+            }
+
             var doc = OpdsFeedBuilder.Feed(
                 id: "opds:readarr:root",
                 title: "Readarr Library",
@@ -69,6 +97,195 @@ namespace Readarr.Api.V1.Opds
                 searchHref: "/opds/search.xml");
 
             return AtomResult(doc);
+        }
+
+        [HttpGet("me/favorites")]
+        public IActionResult MyFavorites()
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+            if (userId == null)
+            {
+                return AtomResult(EmptyPersonalFeed(
+                    "opds:me:favorites",
+                    "Favorites",
+                    "/opds/me/favorites",
+                    "Log in with a per-user ApiKey to see your favorites."));
+            }
+
+            var favoriteBookIds = _favoriteRepo.ForUser(userId.Value)
+                .Select(f => f.BookId)
+                .ToHashSet();
+
+            var entries = BooksToEntries(favoriteBookIds);
+
+            var doc = OpdsFeedBuilder.Feed(
+                id: "opds:me:favorites",
+                title: "Favorites",
+                selfHref: "/opds/me/favorites",
+                startHref: "/opds",
+                feedType: OpdsFeedBuilder.AcqType,
+                entries: entries,
+                upHref: "/opds");
+
+            return AtomResult(doc);
+        }
+
+        [HttpGet("me/reading")]
+        public IActionResult MyReading()
+        {
+            var userId = UserMeHelpers.CurrentUserId(HttpContext);
+            if (userId == null)
+            {
+                return AtomResult(EmptyPersonalFeed(
+                    "opds:me:reading",
+                    "Currently Reading",
+                    "/opds/me/reading",
+                    "Log in with a per-user ApiKey to see your reading list."));
+            }
+
+            var inProgressFileIds = _progressRepo.ForUser(userId.Value)
+                .Where(p => p.Percent.HasValue && p.Percent.Value > 0 && p.Percent.Value < 0.99)
+                .Select(p => p.BookFileId)
+                .ToHashSet();
+
+            if (inProgressFileIds.Count == 0)
+            {
+                var empty = OpdsFeedBuilder.Feed(
+                    id: "opds:me:reading",
+                    title: "Currently Reading",
+                    selfHref: "/opds/me/reading",
+                    startHref: "/opds",
+                    feedType: OpdsFeedBuilder.AcqType,
+                    entries: Array.Empty<XElement>(),
+                    upHref: "/opds");
+                return AtomResult(empty);
+            }
+
+            // Resolve bookfile -> edition -> book to build entries scoped to in-progress books only.
+            var bookIds = new HashSet<int>();
+            foreach (var fileId in inProgressFileIds)
+            {
+                BookFile bf;
+                try
+                {
+                    bf = _mediaFileService.Get(fileId);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (bf == null || bf.EditionId <= 0)
+                {
+                    continue;
+                }
+
+                Edition edition;
+                try
+                {
+                    edition = _editionService.GetEdition(bf.EditionId);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (edition != null && edition.BookId > 0)
+                {
+                    bookIds.Add(edition.BookId);
+                }
+            }
+
+            var entries = BooksToEntries(bookIds);
+
+            var doc = OpdsFeedBuilder.Feed(
+                id: "opds:me:reading",
+                title: "Currently Reading",
+                selfHref: "/opds/me/reading",
+                startHref: "/opds",
+                feedType: OpdsFeedBuilder.AcqType,
+                entries: entries,
+                upHref: "/opds");
+
+            return AtomResult(doc);
+        }
+
+        private List<XElement> BooksToEntries(ISet<int> bookIdFilter)
+        {
+            var entries = new List<XElement>();
+            if (bookIdFilter.Count == 0)
+            {
+                return entries;
+            }
+
+            foreach (var bookId in bookIdFilter)
+            {
+                Book book;
+                try
+                {
+                    book = _bookService.GetBook(bookId);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (book == null)
+                {
+                    continue;
+                }
+
+                var files = _mediaFileService.GetFilesByBook(book.Id);
+                if (files == null || files.Count == 0)
+                {
+                    continue;
+                }
+
+                var primary = files.First();
+                CoreAuthor author = null;
+                try
+                {
+                    author = _authorService.GetAuthor(book.AuthorId);
+                }
+                catch
+                {
+                    /* author gone; fall back to unknown */
+                }
+
+                var authorName = author?.Metadata?.Value?.Name ?? "Unknown";
+
+                entries.Add(OpdsFeedBuilder.BookEntry(
+                    id: $"opds:book:{book.Id}:file:{primary.Id}",
+                    title: book.Title,
+                    authorName: authorName,
+                    downloadHref: $"/opds/download/{primary.Id}",
+                    downloadMime: OpdsFeedBuilder.MimeFor(primary.Path),
+                    published: book.ReleaseDate,
+                    fileSize: primary.Size));
+            }
+
+            return entries;
+        }
+
+        private static XDocument EmptyPersonalFeed(string id, string title, string selfHref, string summary)
+        {
+            // Emit a single "nav" entry with helper text so OPDS clients show
+            // a line explaining why the feed is empty instead of a blank list.
+            return OpdsFeedBuilder.Feed(
+                id: id,
+                title: title,
+                selfHref: selfHref,
+                startHref: "/opds",
+                feedType: OpdsFeedBuilder.AcqType,
+                entries: new[]
+                {
+                    OpdsFeedBuilder.NavEntry(
+                        id + ":hint",
+                        title,
+                        selfHref,
+                        summary)
+                },
+                upHref: "/opds");
         }
 
         [HttpGet("authors")]

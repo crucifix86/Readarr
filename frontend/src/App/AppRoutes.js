@@ -12,7 +12,6 @@ import BookshelfConnector from 'Bookshelf/BookshelfConnector';
 import CalendarPageConnector from 'Calendar/CalendarPageConnector';
 import NotFound from 'Components/NotFound';
 import Switch from 'Components/Router/Switch';
-import ReaderPage from 'Reader/ReaderPage';
 import AddNewItemConnector from 'Search/AddNewItemConnector';
 import CustomFormatSettingsConnector from 'Settings/CustomFormats/CustomFormatSettingsConnector';
 import DevelopmentSettingsConnector from 'Settings/Development/DevelopmentSettingsConnector';
@@ -265,15 +264,6 @@ function AppRoutes(props) {
       <Route
         path="/system/logs/files"
         component={Logs}
-      />
-
-      {/*
-        Reader
-      */}
-
-      <Route
-        path="/read/:bookFileId"
-        component={ReaderPage}
       />
 
       {/*

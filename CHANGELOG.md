@@ -16,6 +16,15 @@ Fork-specific changes on top of upstream Readarr 0.4.19 (retired). This log is a
 - Auth: existing API key via `X-Api-Key` header or `?apikey=` query param
 - SPA fallback route updated to exclude `/opds/*` so the OPDS controller wins
 
+### Per-user OPDS feeds (Phase 2c)
+- `GET /opds/me/favorites` — atom acquisition feed of the authenticated user's starred books.
+- `GET /opds/me/reading` — atom acquisition feed of books the user has in-progress (0 < `UserBookProgress.Percent` < 0.99).
+- `GET /opds` now advertises "Currently Reading" + "Favorites" nav entries only when the caller is using a per-user ApiKey. Global ApiKey requests see the previous library-only feed, so existing OPDS clients that use the global key don't get dead links.
+- When a per-user endpoint is hit with the global ApiKey, it returns a single nav entry explaining to log in with a per-user key instead of a blank feed.
+
+### Admin sidebar
+- "Reader" item added to the main admin sidebar (between Calendar and Activity) so admins and the users they provision can discover the `/reader` portal without having to type the URL. New `noRouter` flag on `PageSidebarItem` threads through to the generic `Link` so this one item does a full-page `<a href>` navigation instead of a React Router push (the reader is a separate bundle, not an SPA route here).
+
 ### Multi-user model (Phase 2a)
 - Migration 044 extends the `Users` table with `Role`, `ApiKey`, `Email`, `CreatedAt` and creates `UserBookProgress`, `UserBookmarks`, `UserFavorites`. Any existing legacy user is seeded as `Admin` with a freshly generated ApiKey on first boot.
 - `ApiKeyAuthenticationHandler` now accepts any `User.ApiKey` alongside the global config key; per-user requests attach `ReadarrUserId` + `ReadarrUserRole` claims.

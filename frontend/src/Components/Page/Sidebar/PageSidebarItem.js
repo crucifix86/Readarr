@@ -31,6 +31,7 @@ class PageSidebarItem extends Component {
       iconName,
       title,
       to,
+      noRouter,
       isActive,
       isActiveParent,
       isChildItem,
@@ -52,6 +53,7 @@ class PageSidebarItem extends Component {
             isActive && styles.isActiveLink
           )}
           to={to}
+          noRouter={noRouter}
           onPress={this.onPress}
         >
           {
@@ -90,6 +92,7 @@ PageSidebarItem.propTypes = {
   iconName: PropTypes.object,
   title: PropTypes.oneOfType([PropTypes.string, PropTypes.func]).isRequired,
   to: PropTypes.string.isRequired,
+  noRouter: PropTypes.bool,
   isActive: PropTypes.bool,
   isActiveParent: PropTypes.bool,
   isParentItem: PropTypes.bool.isRequired,

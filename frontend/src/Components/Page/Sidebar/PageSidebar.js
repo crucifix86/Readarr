@@ -55,6 +55,15 @@ const links = [
   },
 
   {
+    // /reader is a separate webapp served by the backend, not a React
+    // Router route in this SPA. noRouter does a full page navigation.
+    iconName: icons.WIKI,
+    title: () => translate('Reader'),
+    to: '/reader',
+    noRouter: true
+  },
+
+  {
     iconName: icons.ACTIVITY,
     title: () => translate('Activity'),
     to: '/activity/queue',
@@ -492,6 +501,7 @@ class PageSidebar extends Component {
                     iconName={link.iconName}
                     title={link.title}
                     to={link.to}
+                    noRouter={link.noRouter}
                     statusComponent={isActiveParent || !childStatusComponent ? link.statusComponent : childStatusComponent}
                     isActive={pathname === link.to && !hasActiveChild}
                     isActiveParent={isActiveParent}

@@ -21,8 +21,8 @@ Use the provided build script:
 ```
 
 This will build with default values:
-- Version: 0.4.19.0
-- Vendor: Readarr
+- Version: 0.5.0.0 (must stay < 10.x.x and revision <= 10000 or `RuntimeInfo.IsProduction` flips false and HttpClient stops following 302 redirects — nzbgeek/nzbfinder break)
+- Vendor: crucifix86
 - Branch: develop
 - Image name: readarr
 - Tag: latest
@@ -58,11 +58,26 @@ docker build \
 ```bash
 docker run -d \
   --name readarr \
+  --restart unless-stopped \
   -p 8787:8787 \
+  -e TZ=America/Los_Angeles \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  --user 1000:1000 \
   -v /path/to/config:/config \
   -v /path/to/books:/books \
-  readarr:latest
+  -v /path/to/downloads:/data \
+  ghcr.io/crucifix86/readarr:latest
 ```
+
+On Unraid, use `--user 99:100` (nobody:users) so the container can write to `/mnt/user/appdata/<name>` without a `readonly database` failure during migration.
+
+`ASPNETCORE_ENVIRONMENT=Production` is baked into the Dockerfile default, but pass it explicitly if you're overriding env via your orchestrator — without it, HttpClient won't follow 302 redirects and nzbgeek / nzbfinder indexers stop working.
+
+Ports / paths used at runtime:
+- `8787` — admin UI, API, OPDS, and `/reader` end-user portal (all one process)
+- `/config` — SQLite DBs (`readarr.db`, `cache.db`, `logs.db`), `config.xml`, backups. Must be writable by the container's UID.
+- `/books` — your book library (read/write — Readarr renames on import)
+- `/data` — completed downloads (read/write — Readarr moves files into `/books`)
 
 ## CI/CD Integration
 
@@ -74,8 +89,10 @@ The GitHub Actions workflow automatically builds and pushes Docker images to Git
 ### Image Tags
 
 Images are tagged as:
-- `ghcr.io/readarr/readarr:latest` - Latest build
-- `ghcr.io/readarr/readarr:0.4.19.123` - Version-specific build
+- `ghcr.io/crucifix86/readarr:latest` — most recent push to `develop`
+- `ghcr.io/crucifix86/readarr:develop` — alias for the develop tip
+- `ghcr.io/crucifix86/readarr:sha-<shortsha>` — every commit
+- `ghcr.io/crucifix86/readarr:<semver>` — semantic-release-versioned builds
 
 ### Build Process
 
@@ -97,14 +114,14 @@ The CI workflow:
 ## Multi-Stage Build Details
 
 ### Stage 1: Backend Builder
-- Uses .NET 6.0 SDK Alpine image
+- Uses **.NET 8.0 SDK** Alpine image (upstream was .NET 6, long EOL)
 - Builds all .NET projects
 - Publishes for multiple platforms
 
 ### Stage 2: Frontend Builder
-- Uses Node.js 20 Alpine image
+- Uses **Node.js 24** Alpine image
 - Installs dependencies with Yarn
-- Builds React application
+- Builds the admin React SPA **and** the separate `/reader` end-user webapp (second webpack entry, produces `reader.html` + `Content/reader-*.{js,css}` + copies `pdfjs-dist` worker to `Content/pdf.worker.min.mjs`)
 
 ### Stage 3: Package Builder
 - Combines backend and frontend builds

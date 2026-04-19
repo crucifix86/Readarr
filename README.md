@@ -8,6 +8,8 @@
 
 Readarr is an ebook and audiobook collection manager for Usenet and BitTorrent users. It can monitor multiple RSS feeds for new books from your favorite authors and will grab, sort, and rename them.
 
+**This fork also *serves* the books** — something upstream never did. The same Docker container ships an OPDS 1.2 catalog for external readers (Moon+ Reader, KyBook, KOReader, Calibre Companion, etc.), a multi-user model with per-user API keys, and a dedicated web reader portal at `/reader` with server-side EPUB rendering. See [Reader portal](#reader-portal-reader) below.
+
 Note that only one type of a given book is supported per instance. If you want both an audiobook and ebook of a given book you will need multiple instances.
 
 ## About this fork
@@ -52,7 +54,39 @@ On Unraid, use `--user 99:100` (nobody:users).
 
 No Readarr-specific mobile app exists, but the generic Servarr client **[LunaSea](https://www.lunasea.app/)** (free, iOS + Android) supports Readarr alongside Sonarr/Radarr/Lidarr/Prowlarr. Add a Readarr profile, enter `http://<your-host>:8787` + your API key (from *Settings → General*), and you get a queue/history/manual-search/library-browse mobile UI.
 
+For *reading* on mobile, the reader portal at `http://<host>:8787/reader` is responsive (touch-friendly tap zones, off-canvas sidebar, swipe-to-turn). Or point any OPDS-aware reader (Moon+ Reader, KyBook, KOReader, etc.) at `http://<host>:8787/opds` — use a per-user ApiKey from Settings → Users for `/opds/me/favorites` + `/opds/me/reading` to work.
+
+## Reader portal (`/reader`)
+
+Separate end-user webapp served by the same Readarr process on the same port. **Admin stays admin**: users provisioned in Settings → Users get their own credentials and never see the admin UI.
+
+1. In the admin UI: **Settings → Users** → add a user with a password. The user's personal ApiKey is generated automatically.
+2. Give the user the URL `http://<host>:8787/reader` and their username/password.
+3. They log in, see a library grid with covers, and read books in the browser.
+
+What's in it:
+
+- Responsive dark-theme library grid (auto-fit, minmax 140/110 px columns)
+- **Currently Reading** tab — books with 0 < progress < 99%
+- **Favorites** tab — per-user starred books
+- **In-browser reader** — server-side EPUB rendering (Kavita-style): the backend parses the epub zip, scopes its CSS, proxies embedded images, and serves one HTML fragment per spine item. Client is a dumb `dangerouslySetInnerHTML` viewer — no epub.js, no iframe.
+  - Keyboard (←/→/PgUp/PgDn/Esc) and touch-swipe navigation
+  - Chapter label + "Chapter X of Y · page N / M" + thin progress bar
+  - TOC sidebar, bookmarks (add/goto/delete), position persistence per user
+  - **"Skip empty" toggle** — Calibre "split" epubs sometimes stuff all chapter-title fragments at the front of the spine and prose at the back; when on, Next/Prev skip over spine items under 2 KB. Remembered per user in localStorage.
+- PDF support via `pdfjs-dist` (page-based navigation)
+
+For external readers (Moon+ Reader / KyBook / KOReader / Calibre Companion / Aldiko), the same backend exposes OPDS 1.2 at `/opds`, with per-user `/opds/me/favorites` and `/opds/me/reading` feeds when authenticated with a per-user ApiKey.
+
 ## What this fork adds on top of upstream
+
+Serving books (new capability — upstream was catalog + downloader only):
+- **OPDS 1.2 catalog** at `/opds` for any OPDS-aware reader
+- **Multi-user model** — migration 044: Role/ApiKey/Email/CreatedAt on Users, plus UserBookProgress/UserBookmarks/UserFavorites tables. `/api/v1/user` CRUD + Settings → Users admin page. Per-user ApiKeys authenticate alongside the global config key.
+- **`/reader` end-user portal** (own webpack bundle, own login, responsive)
+- **Server-side EPUB rendering** — backend scopes CSS and proxies resources; client is a plain HTML viewer. Handles Calibre-"split" epubs that break browser epub libraries.
+- **Per-user OPDS feeds** — `/opds/me/favorites` and `/opds/me/reading` when authenticated with a per-user ApiKey.
+- **Reader shortcut** in the admin sidebar.
 
 Runtime modernization:
 - Targets **.NET 8** (upstream was .NET 6, long EOL)
@@ -104,19 +138,15 @@ Defaults to `https://api.bookinfo.pro` (community-hosted [rreading-glasses](http
 
 ## Roadmap
 
-Known gaps we plan to fix (not-yet-started):
+### Done on this fork
 
-- **Omnibus/multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
+- **Reader track — fully shipped.** The entire in-Readarr reading stack is live: OPDS 1.2 catalog at `/opds`, multi-user model (migration 044) with per-user ApiKeys and Settings → Users admin surface, `/reader` end-user portal (own bundle, own login, library grid / favorites / currently reading), server-side EPUB rendering (Kavita-style) with CSS scoping and resource proxying, "skip empty" toggle for Calibre-split epubs, admin-sidebar shortcut, per-user OPDS feeds (`/opds/me/favorites`, `/opds/me/reading`). See [Reader portal](#reader-portal-reader) and [CHANGELOG.md](CHANGELOG.md) for the commit-by-commit breakdown.
+
+### Not yet started
+
+- **Omnibus / multi-book file support** — let a single file satisfy multiple book entities. Candidate approaches: detect `AND` / `;` / `&` patterns in parsed titles and try each side against the book DB, or add a "multi-book file" flag that binds one `BookFile` row to several books. Needs design before coding.
 - **Per-author series filter** — when you add an author, Readarr pulls the entire bibliography. Most readers want specific series only (e.g. Terry Brooks's Shannara + Landover but not every standalone tie-in). Workaround today is Import Lists pointed at curated Goodreads/Hardcover lists. Proper fix: add a monitored-series allowlist per author, with the refresh flow honoring it.
-- **Reader + OPDS endpoint built into Readarr** — eliminates the second-container requirement and lets Readarr own the end-to-end flow.
-  - ✅ **Phase 1 done (commit `1b68b88`)**: OPDS 1.2 catalog at `/opds` — root / authors / author detail / recently added / search / download. Works with Moon+ Reader, KyBook, KOReader, Aldiko, Calibre Companion. Auth via global API key.
-  - ✅ **Phase 2a done (commit `f1c36217`)**: multi-user foundation — migration 044 extends `Users` with Role + per-user ApiKey + Email + CreatedAt, plus `UserBookProgress` / `UserBookmarks` / `UserFavorites` tables. Admin CRUD at `/api/v1/user` and a Settings → Users page in the admin UI. Any `User.ApiKey` is a valid auth alongside the global config key.
-  - ✅ **Phase 2b done (commit `49d3d661`, superseded by Phase 4)**: first-gen in-browser reader at `/read/:bookFileId` using epub.js + pdf.js, saving progress/bookmarks to the per-user tables. Hit Calibre-"split" epub limits; replaced in Phase 4.
-  - ✅ **Phase 3 done (commit `c50a7d7a`)**: dedicated `/reader` end-user portal — separate webpack entry, own login (`POST /reader/api/login` → `{user, apiKey}`), own layout, responsive. Library grid with covers, Currently Reading (from progress < 100%), Favorites. Admin UI stays admin-only.
-  - ✅ **Phase 4 done (commit `7472fb1a`)**: server-side EPUB rendering (Kavita-style). Dropped epub.js — backend now parses the zip directly (`VersOne.Epub` conflicts with the local `EpubTag` fork, so we use `System.IO.Compression.ZipArchive` + HtmlAgilityPack + ExCSS instead), serves one scoped HTML fragment per spine item at `/api/v1/user/me/epub/{bookFileId}/page/{N}`, proxies images/CSS/fonts via `/resource`. Frontend renders via `dangerouslySetInnerHTML` — no iframe, no client-side epub lib. Fixes Calibre-split epubs and arbitrary malformed books.
-  - ✅ **Admin sidebar shortcut** (commit `66a3f26b`): "Reader" item in the main admin sidebar between Calendar and Activity, using `noRouter` so it does a full-page navigation to `/reader` instead of a React Router push that would 404.
-  - ✅ **Phase 2c done**: per-user OPDS feeds. `/opds/me/favorites` returns the user's starred books; `/opds/me/reading` returns books with 0 < progress < 99%. Both are advertised from `/opds` root *only* when the caller uses a per-user ApiKey — the global config key still sees the original library-only feed, so non-reader clients don't see dead links.
-- Dedicated self-hosted metadata server (user-owned alternative to `api.bookinfo.pro`)
+- **Dedicated self-hosted metadata server** — user-owned alternative to `api.bookinfo.pro` so forks aren't dependent on a community-hosted instance.
 
 ## Contributing / building locally
 

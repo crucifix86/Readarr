@@ -393,13 +393,13 @@ function EpubReader(props: Props) {
 
         <div ref={hostRef} className="readerViewer">
           {status === 'error' && (
-            <div className="readerStatus readerStatusError">
-              Unable to render this book.
+            <div className="readerInlineError">
+              Unable to render this page.
               {errorMessage ? ` (${errorMessage})` : ''}
             </div>
           )}
           {status === 'loading' && (
-            <div className="readerStatus">Loading page…</div>
+            <div className="readerPageSpinner" aria-label="Loading page" />
           )}
           <div
             className="readerEpubHost"

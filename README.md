@@ -16,6 +16,20 @@ The original Readarr project was retired by the Servarr team in mid-2025 after i
 
 Not affiliated with, endorsed by, or related to the Servarr team.
 
+## Screenshots
+
+**Admin UI** — the familiar Readarr library view with a new **Reader** entry in the left sidebar that opens the in-browser reader portal:
+
+![Admin UI with Reader sidebar entry](docs/screenshots/admin-sidebar-reader-link.png)
+
+**Reader portal** (`/reader`) — separate end-user webapp. Users log in with credentials the admin creates in Settings → Users; responsive dark-theme library grid with covers, progress bars, and favorites. No admin UI exposed:
+
+![Reader portal library](docs/screenshots/reader-library.png)
+
+**In-browser reader** — server-side EPUB rendering (Kavita-style), no client-side epub library. Chapter label + progress bar, TOC sidebar, keyboard / swipe navigation, bookmarks, "skip empty pages" toggle for Calibre-split epubs:
+
+![In-browser reader](docs/screenshots/reader-page.png)
+
 ## Quick start (Docker)
 
 ```bash

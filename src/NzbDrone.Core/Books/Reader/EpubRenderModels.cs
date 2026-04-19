@@ -7,6 +7,10 @@ namespace NzbDrone.Core.Books.Reader
         public string Title { get; set; }
         public string Author { get; set; }
         public int PageCount { get; set; }
+
+        // Per-page uncompressed byte size of the spine HTML file. Clients
+        // use this to skip near-empty pages when the user opts in.
+        public List<long> PageSizes { get; set; } = new List<long>();
     }
 
     public class EpubChapter

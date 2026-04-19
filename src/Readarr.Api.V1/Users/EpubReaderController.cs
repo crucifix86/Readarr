@@ -33,6 +33,7 @@ namespace Readarr.Api.V1.Users
             public string Title { get; set; }
             public string Author { get; set; }
             public int PageCount { get; set; }
+            public List<long> PageSizes { get; set; }
         }
 
         public class EpubChapterResponse
@@ -75,7 +76,8 @@ namespace Readarr.Api.V1.Users
                     BookFileId = bookFileId,
                     Title = info.Title,
                     Author = info.Author,
-                    PageCount = info.PageCount
+                    PageCount = info.PageCount,
+                    PageSizes = info.PageSizes
                 };
             }
             catch (Exception e)

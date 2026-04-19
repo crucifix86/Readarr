@@ -30,6 +30,12 @@ namespace NzbDrone.Core.Books.Reader
         public string TocNcxPath { get; }
         public string NavHtmlPath { get; }
 
+        // Uncompressed size in bytes of each spine HTML file — a cheap proxy
+        // for "does this page have real content". Calibre "split" epubs stash
+        // chapter-title-only fragments of ~600B and the actual prose in
+        // 5KB+ files; the client uses this to optionally skip the empty bits.
+        public List<long> SpineSizes { get; } = new List<long>();
+
         public EpubArchive(string epubPath)
         {
             _zip = ZipFile.OpenRead(epubPath);
@@ -113,6 +119,8 @@ namespace NzbDrone.Core.Books.Reader
                     if (!string.IsNullOrEmpty(idref) && manifestById.TryGetValue(idref, out var full))
                     {
                         Spine.Add(full);
+                        var entry = GetEntry(full) ?? FindEntry(full);
+                        SpineSizes.Add(entry?.Length ?? 0);
                     }
                 }
             }

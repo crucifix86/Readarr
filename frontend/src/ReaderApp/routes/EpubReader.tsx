@@ -21,7 +21,14 @@ interface InfoResponse {
   title: string;
   author: string;
   pageCount: number;
+  pageSizes: number[] | null;
 }
+
+// Pages below this uncompressed-byte threshold are treated as "empty"
+// when the user has the "Skip empty pages" toggle on. Calibre split-epub
+// chapter-heading fragments are ~700B; real content is typically 5KB+.
+const EMPTY_PAGE_THRESHOLD = 2000;
+const SKIP_EMPTY_STORAGE_KEY = 'readarr-reader-skip-empty';
 
 interface FlatChapter {
   title: string;
@@ -83,6 +90,13 @@ function EpubReader(props: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [skipEmpty, setSkipEmpty] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(SKIP_EMPTY_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const flat = useMemo(() => flattenChapters(chapters), [chapters]);
   const currentChapter = useMemo(() => {
@@ -216,9 +230,40 @@ function EpubReader(props: Props) {
     return () => host.removeEventListener('click', onClick);
   }, [flat]);
 
-  const onPrev = () => setPage((p) => Math.max(p - 1, 0));
+  // Step forward/back through "empty" pages when skip-empty is on.
+  const adjustForSkip = (candidate: number, direction: 1 | -1): number => {
+    if (!skipEmpty || !info?.pageSizes || info.pageSizes.length === 0) {
+      return candidate;
+    }
+    let p = candidate;
+    while (
+      p >= 0 &&
+      p < pageCount &&
+      info.pageSizes[p] !== undefined &&
+      info.pageSizes[p] < EMPTY_PAGE_THRESHOLD
+    ) {
+      p += direction;
+    }
+    return p >= 0 && p < pageCount ? p : candidate;
+  };
+
+  const onPrev = () => setPage((p) => adjustForSkip(Math.max(p - 1, 0), -1));
   const onNext = () =>
-    setPage((p) => (pageCount > 0 ? Math.min(p + 1, pageCount - 1) : p));
+    setPage((p) =>
+      pageCount > 0 ? adjustForSkip(Math.min(p + 1, pageCount - 1), 1) : p
+    );
+
+  const onToggleSkipEmpty = () => {
+    setSkipEmpty((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem(SKIP_EMPTY_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  };
   const onPrevChapter = () => {
     if (!currentChapter) return;
     const idx = flat.findIndex((c) => c === currentChapter);
@@ -326,6 +371,17 @@ function EpubReader(props: Props) {
           ⏭
         </button>
         <div className="readerToolbarSpacer" />
+        <label
+          className="readerSkipToggle"
+          title="Skip near-empty pages (useful for Calibre split epubs)"
+        >
+          <input
+            type="checkbox"
+            checked={skipEmpty}
+            onChange={onToggleSkipEmpty}
+          />
+          <span>Skip empty</span>
+        </label>
         <button type="button" onClick={onAddBookmark} aria-label="Bookmark">
           🔖
         </button>

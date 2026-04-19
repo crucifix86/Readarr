@@ -41,7 +41,8 @@ namespace NzbDrone.Core.Books.Reader
             {
                 Title = archive.Title,
                 Author = archive.Author,
-                PageCount = archive.Spine.Count
+                PageCount = archive.Spine.Count,
+                PageSizes = new List<long>(archive.SpineSizes)
             };
         }
 

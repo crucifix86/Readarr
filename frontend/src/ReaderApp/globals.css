@@ -431,10 +431,41 @@ ul {
   width: 100%;
 }
 
-.readerEpubHost iframe {
-  width: 100%;
-  border: 0;
+/* stylelint-disable selector-class-pattern, color-hex-length --
+   .book-content is produced server-side in the scoped EPUB HTML wrapper
+   (matches Kavita convention) so its kebab casing is required. */
+
+.readerEpubHost .book-content {
+  margin: 0 auto;
+  padding: 24px 32px;
+  max-width: 720px;
+  color: #222;
+  font-size: 17px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", serif;
+  line-height: 1.65;
 }
+
+.readerEpubHost .book-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.readerEpubHost .book-content a {
+  color: #07c;
+}
+
+.readerEpubHost .book-content p {
+  margin: 0 0 1em;
+}
+
+.readerEpubHost .book-content h1,
+.readerEpubHost .book-content h2,
+.readerEpubHost .book-content h3 {
+  margin-top: 1.5em;
+  line-height: 1.25;
+}
+
+/* stylelint-enable selector-class-pattern, color-hex-length */
 
 .readerPdfViewer {
   display: flex;

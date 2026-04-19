@@ -76,5 +76,7 @@
     <PackageVersion Include="System.Text.Json" Version="6.0.10" />
     <PackageVersion Include="System.ValueTuple" Version="4.6.1" />
     <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.11.72" />
+    <PackageVersion Include="ExCSS" Version="4.3.0" />
   </ItemGroup>
 </Project>

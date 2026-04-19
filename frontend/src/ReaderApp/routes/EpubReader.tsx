@@ -1,8 +1,33 @@
-import ePub, { Book, NavItem, Rendition } from 'epubjs';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useHistory } from 'react-router-dom';
-import { apiFetch } from '../api';
+import { apiFetch, urlBase } from '../api';
 import { ReaderUser } from '../auth';
+
+interface ChapterResponse {
+  title: string;
+  page: number;
+  part: string | null;
+  children: ChapterResponse[] | null;
+}
+
+interface InfoResponse {
+  bookFileId: number;
+  title: string;
+  author: string;
+  pageCount: number;
+}
+
+interface FlatChapter {
+  title: string;
+  page: number;
+  depth: number;
+}
 
 interface Bookmark {
   id: number;
@@ -15,219 +40,208 @@ interface Bookmark {
 interface Props {
   user: ReaderUser;
   bookFileId: number;
-  contentUrl: string;
   initialLocation: string | null;
 }
 
-// Flatten the TOC tree so we can show "Chapter X of Y" counting all entries.
-function flattenToc(items: NavItem[]): NavItem[] {
-  const out: NavItem[] = [];
-  const walk = (list: NavItem[]) => {
-    for (const item of list) {
-      out.push(item);
-      if (item.subitems && item.subitems.length) walk(item.subitems);
+function flattenChapters(
+  items: ChapterResponse[] | null,
+  depth = 0,
+  out: FlatChapter[] = []
+): FlatChapter[] {
+  if (!items) return out;
+  for (const item of items) {
+    out.push({ title: item.title || '', page: item.page, depth });
+    if (item.children && item.children.length) {
+      flattenChapters(item.children, depth + 1, out);
     }
-  };
-  walk(items);
+  }
   return out;
+}
+
+function parseInitialPage(initial: string | null): number {
+  if (!initial) return 0;
+  const m = initial.match(/^page:(\d+)/);
+  if (m) return parseInt(m[1]);
+  const n = parseInt(initial);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function EpubReader(props: Props) {
   const history = useHistory();
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const bookRef = useRef<Book | null>(null);
-  const renditionRef = useRef<Rendition | null>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
 
-  const [toc, setToc] = useState<NavItem[]>([]);
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [info, setInfo] = useState<InfoResponse | null>(null);
+  const [chapters, setChapters] = useState<ChapterResponse[]>([]);
+  const [page, setPage] = useState<number>(
+    parseInitialPage(props.initialLocation)
+  );
+  const [pageHtml, setPageHtml] = useState<string>('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading'
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [currentHref, setCurrentHref] = useState<string | null>(null);
-  const [percent, setPercent] = useState<number | null>(null);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [showSidebar, setShowSidebar] = useState(false);
 
-  const flatToc = useMemo(() => flattenToc(toc), [toc]);
-  const chapterIndex = useMemo(() => {
-    if (!currentHref) return -1;
-    const bare = currentHref.split('#')[0];
-    return flatToc.findIndex((it) => (it.href || '').split('#')[0] === bare);
-  }, [flatToc, currentHref]);
-  const currentChapter = chapterIndex >= 0 ? flatToc[chapterIndex] : null;
+  const flat = useMemo(() => flattenChapters(chapters), [chapters]);
+  const currentChapter = useMemo(() => {
+    if (flat.length === 0) return null;
+    let best: FlatChapter | null = null;
+    for (const c of flat) {
+      if (c.page <= page) best = c;
+      else break;
+    }
+    return best || flat[0];
+  }, [flat, page]);
+  const chapterOrdinal = useMemo(() => {
+    if (!currentChapter) return 0;
+    return flat.findIndex((c) => c === currentChapter) + 1;
+  }, [flat, currentChapter]);
+
+  const pageCount = info?.pageCount ?? 0;
+  const percent = pageCount > 0 ? (page + 1) / pageCount : 0;
 
   useEffect(() => {
-    const host = viewerRef.current;
-    if (!host) return undefined;
-
     let cancelled = false;
-    let rendition: Rendition | null = null;
-    const book = ePub(props.contentUrl, { openAs: 'epub' });
-    bookRef.current = book;
-
-    const start = () => {
-      if (cancelled) return;
-      if (host.clientWidth === 0 || host.clientHeight === 0) {
-        window.requestAnimationFrame(start);
-        return;
-      }
-
-      try {
-        // Scrolled-doc: each chapter renders as a regular scrollable DOM
-        // fragment instead of the finicky paginated iframe. Much more
-        // reliable — this is what Kavita / KOReader-web / most robust
-        // epub viewers use.
-        // scrolled-doc + default manager: each chapter is its own scrollable
-        // view. Prev/Next button loads adjacent chapters. Users get clear
-        // section boundaries instead of one endless scroll.
-        rendition = book.renderTo(host, {
-          width: '100%',
-          height: '100%',
-          flow: 'scrolled-doc',
-          manager: 'default',
-          allowScriptedContent: false,
-        });
-        renditionRef.current = rendition;
-      } catch (err) {
+    Promise.all([
+      apiFetch<InfoResponse>(
+        props.user,
+        `/user/me/epub/${props.bookFileId}/info`
+      ),
+      apiFetch<ChapterResponse[]>(
+        props.user,
+        `/user/me/epub/${props.bookFileId}/chapters`
+      ).catch(() => [] as ChapterResponse[]),
+    ])
+      .then(([i, ch]) => {
+        if (cancelled) return;
+        setInfo(i);
+        setChapters(ch || []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
         setStatus('error');
         setErrorMessage(err instanceof Error ? err.message : String(err));
-        return;
-      }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.user, props.bookFileId]);
 
-      rendition.themes.default({
-        body: {
-          padding: '24px 32px',
-          'max-width': '720px',
-          margin: '0 auto',
-          'font-family':
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, serif',
-          'font-size': '16px',
-          'line-height': '1.6',
-          color: '#222',
-        },
-        img: { 'max-width': '100%', height: 'auto' },
-        a: { color: '#0077cc' },
+  useEffect(() => {
+    if (!info) return undefined;
+    let cancelled = false;
+    setStatus('loading');
+    const base = urlBase();
+    fetch(`${base}/api/v1/user/me/epub/${props.bookFileId}/page/${page}`, {
+      headers: { 'X-Api-Key': props.user.apiKey },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((html) => {
+        if (cancelled) return;
+        setPageHtml(html);
+        setStatus('ready');
+        if (hostRef.current) {
+          hostRef.current.scrollTop = 0;
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setStatus('error');
+        setErrorMessage(err instanceof Error ? err.message : String(err));
       });
 
-      (props.initialLocation
-        ? rendition.display(props.initialLocation)
-        : rendition.display()
-      )
-        .then(() => {
-          if (!cancelled) setStatus('ready');
-        })
-        .catch(() => {
-          // Fallback: display from start if the saved location is bad.
-          if (cancelled || !rendition) return;
-          rendition
-            .display()
-            .then(() => !cancelled && setStatus('ready'))
-            .catch((err: Error) => {
-              if (cancelled) return;
-              setStatus('error');
-              setErrorMessage(err.message);
-            });
-        });
-
-      book.loaded.navigation
-        .then((nav) => {
-          if (!cancelled) setToc(nav.toc || []);
-        })
-        .catch(() => {
-          /* noop */
-        });
-
-      rendition.on(
-        'relocated',
-        (location: {
-          start?: { cfi: string; href?: string; percentage?: number };
-        }) => {
-          if (cancelled || !location?.start) return;
-          const cfi = location.start.cfi;
-          const href = location.start.href || null;
-          const pct =
-            typeof location.start.percentage === 'number'
-              ? location.start.percentage
-              : null;
-          setCurrentHref(href);
-          setPercent(pct);
-          if (saveTimerRef.current) {
-            window.clearTimeout(saveTimerRef.current);
-          }
-          saveTimerRef.current = window.setTimeout(() => {
-            apiFetch(props.user, `/user/me/progress/${props.bookFileId}`, {
-              method: 'PUT',
-              body: JSON.stringify({ location: cfi, percent: pct }),
-            }).catch(() => {
-              /* noop */
-            });
-          }, 1200);
-        }
-      );
-
-      // eslint-disable-next-line no-use-before-define
-      loadBookmarks();
-    };
-
-    start();
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
-        renditionRef.current?.next();
-      }
-      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        renditionRef.current?.prev();
-      }
-      if (e.key === 'Escape') {
-        history.goBack();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      const pct = info.pageCount > 0 ? (page + 1) / info.pageCount : null;
+      apiFetch(props.user, `/user/me/progress/${props.bookFileId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ location: `page:${page}`, percent: pct }),
+      }).catch(() => {
+        /* noop */
+      });
+    }, 800);
 
     return () => {
       cancelled = true;
-      document.removeEventListener('keydown', onKeyDown);
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-      try {
-        renditionRef.current?.destroy();
-      } catch {
-        /* noop */
-      }
-      try {
-        book.destroy();
-      } catch {
-        /* noop */
-      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.bookFileId, props.contentUrl]);
+  }, [info, page, props.bookFileId, props.user]);
 
-  function loadBookmarks() {
+  const loadBookmarks = useCallback(() => {
     apiFetch<Bookmark[]>(
       props.user,
       `/user/me/bookmarks?bookFileId=${props.bookFileId}`
     )
       .then((data) => setBookmarks(data || []))
       .catch(() => setBookmarks([]));
-  }
+  }, [props.user, props.bookFileId]);
 
-  const onPrev = () => renditionRef.current?.prev();
-  const onNext = () => renditionRef.current?.next();
+  useEffect(() => {
+    loadBookmarks();
+  }, [loadBookmarks]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        setPage((p) => (pageCount > 0 ? Math.min(p + 1, pageCount - 1) : p));
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        setPage((p) => Math.max(p - 1, 0));
+      } else if (e.key === 'Escape') {
+        history.goBack();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [pageCount, history]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return undefined;
+    const onClick = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const a = target.closest('a[data-epub-href]') as HTMLAnchorElement | null;
+      if (!a) return;
+      e.preventDefault();
+      const href = a.getAttribute('data-epub-href') || '';
+      if (!href) return;
+      const match = flat.find((c) => href.endsWith(c.title));
+      if (match) setPage(match.page);
+    };
+    host.addEventListener('click', onClick);
+    return () => host.removeEventListener('click', onClick);
+  }, [flat]);
+
+  const onPrev = () => setPage((p) => Math.max(p - 1, 0));
+  const onNext = () =>
+    setPage((p) => (pageCount > 0 ? Math.min(p + 1, pageCount - 1) : p));
+  const onPrevChapter = () => {
+    if (!currentChapter) return;
+    const idx = flat.findIndex((c) => c === currentChapter);
+    if (idx > 0) setPage(flat[idx - 1].page);
+  };
+  const onNextChapter = () => {
+    if (!currentChapter) return;
+    const idx = flat.findIndex((c) => c === currentChapter);
+    if (idx >= 0 && idx < flat.length - 1) setPage(flat[idx + 1].page);
+  };
+
+  const onChapterSelect = (p: number) => {
+    setPage(p);
+    setShowSidebar(false);
+  };
 
   const onAddBookmark = async () => {
-    const loc = renditionRef.current?.currentLocation() as
-      | { start?: { cfi: string } }
-      | undefined;
-    const cfi = loc?.start?.cfi;
-    if (!cfi) {
-      return;
-    }
     await apiFetch(props.user, '/user/me/bookmarks', {
       method: 'POST',
-      body: JSON.stringify({ bookFileId: props.bookFileId, location: cfi }),
+      body: JSON.stringify({
+        bookFileId: props.bookFileId,
+        location: `page:${page}`,
+      }),
     });
     loadBookmarks();
   };
@@ -239,13 +253,8 @@ function EpubReader(props: Props) {
     loadBookmarks();
   };
 
-  const onChapterSelect = (href: string) => {
-    renditionRef.current?.display(href);
-    setShowSidebar(false);
-  };
-
-  const onGotoBookmark = (cfi: string) => {
-    renditionRef.current?.display(cfi);
+  const onGotoBookmark = (loc: string) => {
+    setPage(parseInitialPage(loc));
     setShowSidebar(false);
   };
 
@@ -268,33 +277,53 @@ function EpubReader(props: Props) {
         </button>
         <button
           type="button"
-          onClick={onPrev}
-          aria-label="Previous chapter"
+          onClick={onPrevChapter}
           title="Previous chapter"
+          aria-label="Previous chapter"
+        >
+          ⏮
+        </button>
+        <button
+          type="button"
+          onClick={onPrev}
+          title="Previous page"
+          aria-label="Previous page"
         >
           ◀
         </button>
         <div className="readerChapterLabel">
-          {currentChapter ? (
+          {currentChapter && (
             <>
-              <div className="readerChapterTitle">{currentChapter.label}</div>
-              {flatToc.length > 0 && (
+              <div className="readerChapterTitle">{currentChapter.title}</div>
+              {flat.length > 0 && (
                 <div className="readerChapterCount">
-                  Chapter {chapterIndex + 1} of {flatToc.length}
+                  Chapter {chapterOrdinal} of {flat.length} · page {page + 1}
+                  {pageCount > 0 ? ` / ${pageCount}` : ''}
                 </div>
               )}
             </>
-          ) : (
-            <div className="readerChapterTitle">&nbsp;</div>
+          )}
+          {!currentChapter && pageCount > 0 && (
+            <div className="readerChapterCount">
+              Page {page + 1} of {pageCount}
+            </div>
           )}
         </div>
         <button
           type="button"
           onClick={onNext}
-          aria-label="Next chapter"
-          title="Next chapter"
+          title="Next page"
+          aria-label="Next page"
         >
           ▶
+        </button>
+        <button
+          type="button"
+          onClick={onNextChapter}
+          title="Next chapter"
+          aria-label="Next chapter"
+        >
+          ⏭
         </button>
         <div className="readerToolbarSpacer" />
         <button type="button" onClick={onAddBookmark} aria-label="Bookmark">
@@ -305,12 +334,7 @@ function EpubReader(props: Props) {
       <div className="readerProgressTrack">
         <div
           className="readerProgressFill"
-          style={{
-            width: `${Math.min(
-              100,
-              Math.max(0, Math.round((percent ?? 0) * 100))
-            )}%`,
-          }}
+          style={{ width: `${Math.min(100, Math.round(percent * 100))}%` }}
         />
       </div>
 
@@ -319,15 +343,19 @@ function EpubReader(props: Props) {
           <aside className="readerSidebar">
             <div className="readerSidebarSection">
               <div className="readerSidebarHeader">Contents</div>
+              {flat.length === 0 && (
+                <div className="readerSidebarEmpty">No chapters</div>
+              )}
               <ul className="readerSidebarList">
-                {toc.map((item) => (
-                  <li key={item.id}>
+                {flat.map((c, i) => (
+                  <li key={i}>
                     <button
                       type="button"
                       className="readerSidebarLink"
-                      onClick={() => onChapterSelect(item.href)}
+                      style={{ paddingLeft: `${8 + c.depth * 12}px` }}
+                      onClick={() => onChapterSelect(c.page)}
                     >
-                      {item.label}
+                      {c.title || `Section ${c.page + 1}`}
                     </button>
                   </li>
                 ))}
@@ -363,17 +391,21 @@ function EpubReader(props: Props) {
           </aside>
         )}
 
-        <div className="readerViewer">
-          {status === 'loading' && (
-            <div className="readerStatus">Loading book…</div>
-          )}
+        <div ref={hostRef} className="readerViewer">
           {status === 'error' && (
             <div className="readerStatus readerStatusError">
               Unable to render this book.
               {errorMessage ? ` (${errorMessage})` : ''}
             </div>
           )}
-          <div ref={viewerRef} className="readerEpubHost" />
+          {status === 'loading' && (
+            <div className="readerStatus">Loading page…</div>
+          )}
+          <div
+            className="readerEpubHost"
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: pageHtml }}
+          />
         </div>
       </div>
     </div>

@@ -84,7 +84,6 @@ function Read() {
       <EpubReader
         user={user}
         bookFileId={Number(bookFileId)}
-        contentUrl={url}
         initialLocation={progress?.location || null}
       />
     );

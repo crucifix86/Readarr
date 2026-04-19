@@ -34,6 +34,8 @@
     <PackageReference Include="RestSharp" />
     <PackageReference Include="System.IO.Abstractions" />
     <PackageReference Include="TagLibSharp-Lidarr" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="ExCSS" />
     <PackageReference Include="SixLabors.ImageSharp" />
     <PackageReference Include="Equ" />
     <PackageReference Include="MonoTorrent" />

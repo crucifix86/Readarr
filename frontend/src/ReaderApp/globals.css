@@ -414,19 +414,6 @@ ul {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-.readerTapPrev, .readerTapNext {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 2;
-  width: 15%;
-  cursor: pointer;
-}
-
-.readerTapPrev { left: 0; }
-
-.readerTapNext { right: 0; }
-
 .readerRendering {
   position: absolute;
   top: 12px;
@@ -436,6 +423,23 @@ ul {
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   font-size: 11px;
+}
+
+.readerStatus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 16px 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 14px;
+  transform: translate(-50%, -50%);
+}
+
+.readerStatusError {
+  background: rgba(74, 31, 31, 0.95);
+  color: #ffb3b3;
 }
 
 /* Mobile */

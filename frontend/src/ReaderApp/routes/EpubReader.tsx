@@ -19,32 +19,30 @@ interface Props {
   initialLocation: string | null;
 }
 
-// Swipe threshold — anything less than this is treated as a tap/scroll, not a page flip.
-const SWIPE_MIN_PX = 40;
-
 function EpubReader(props: Props) {
   const history = useHistory();
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const saveTimerRef = useRef<number | null>(null);
-  const touchStartX = useRef<number | null>(null);
 
   const [toc, setToc] = useState<NavItem[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading'
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const host = viewerRef.current;
     if (!host) return undefined;
 
     let cancelled = false;
+    let rendition: Rendition | null = null;
     const book = ePub(props.contentUrl, { openAs: 'epub' });
     bookRef.current = book;
 
-    // Wait for the host to have a non-zero size. Paginated epub.js
-    // getComputedStyle()s the iframe immediately after renderTo(); if the
-    // host is 0x0 it NPEs on "writing-mode".
     const start = () => {
       if (cancelled) return;
       if (host.clientWidth === 0 || host.clientHeight === 0) {
@@ -52,25 +50,59 @@ function EpubReader(props: Props) {
         return;
       }
 
-      const rendition = book.renderTo(host, {
-        width: '100%',
-        height: '100%',
-        flow: 'paginated',
-        manager: 'default',
-        allowScriptedContent: true,
+      try {
+        // Scrolled-doc: each chapter renders as a regular scrollable DOM
+        // fragment instead of the finicky paginated iframe. Much more
+        // reliable — this is what Kavita / KOReader-web / most robust
+        // epub viewers use.
+        rendition = book.renderTo(host, {
+          width: '100%',
+          height: '100%',
+          flow: 'scrolled-doc',
+          manager: 'continuous',
+          allowScriptedContent: false,
+        });
+        renditionRef.current = rendition;
+      } catch (err) {
+        setStatus('error');
+        setErrorMessage(err instanceof Error ? err.message : String(err));
+        return;
+      }
+
+      rendition.themes.default({
+        body: {
+          padding: '24px 32px',
+          'max-width': '720px',
+          margin: '0 auto',
+          'font-family':
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, serif',
+          'font-size': '16px',
+          'line-height': '1.6',
+          color: '#222',
+        },
+        img: { 'max-width': '100%', height: 'auto' },
+        a: { color: '#0077cc' },
       });
-      renditionRef.current = rendition;
 
       (props.initialLocation
         ? rendition.display(props.initialLocation)
         : rendition.display()
-      ).catch(() => {
-        try {
-          rendition.display();
-        } catch {
-          /* noop */
-        }
-      });
+      )
+        .then(() => {
+          if (!cancelled) setStatus('ready');
+        })
+        .catch(() => {
+          // Fallback: display from start if the saved location is bad.
+          if (cancelled || !rendition) return;
+          rendition
+            .display()
+            .then(() => !cancelled && setStatus('ready'))
+            .catch((err: Error) => {
+              if (cancelled) return;
+              setStatus('error');
+              setErrorMessage(err.message);
+            });
+        });
 
       book.loaded.navigation
         .then((nav) => {
@@ -84,13 +116,11 @@ function EpubReader(props: Props) {
         'relocated',
         (location: { start?: { cfi: string; percentage?: number } }) => {
           if (cancelled || !location?.start) return;
-
           const cfi = location.start.cfi;
           const percent =
             typeof location.start.percentage === 'number'
               ? location.start.percentage
               : null;
-
           if (saveTimerRef.current) {
             window.clearTimeout(saveTimerRef.current);
           }
@@ -130,8 +160,6 @@ function EpubReader(props: Props) {
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
       }
-      // epub.js resize observers sometimes fire after the iframe is torn down
-      // and NPE on getComputedStyle. Swallow — we're unmounting anyway.
       try {
         renditionRef.current?.destroy();
       } catch {
@@ -143,7 +171,6 @@ function EpubReader(props: Props) {
         /* noop */
       }
     };
-    // Re-mount if bookFileId or contentUrl changes (which only happens on route change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.bookFileId, props.contentUrl]);
 
@@ -158,26 +185,6 @@ function EpubReader(props: Props) {
 
   const onPrev = () => renditionRef.current?.prev();
   const onNext = () => renditionRef.current?.next();
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current == null) {
-      return;
-    }
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(dx) < SWIPE_MIN_PX) {
-      return;
-    }
-    if (dx < 0) {
-      onNext();
-    } else {
-      onPrev();
-    }
-  };
 
   const onAddBookmark = async () => {
     const loc = renditionRef.current?.currentLocation() as
@@ -227,6 +234,22 @@ function EpubReader(props: Props) {
           aria-label="Contents"
         >
           ☰
+        </button>
+        <button
+          type="button"
+          onClick={onPrev}
+          aria-label="Previous chapter"
+          title="Previous chapter"
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          aria-label="Next chapter"
+          title="Next chapter"
+        >
+          ▶
         </button>
         <div className="readerToolbarSpacer" />
         <button type="button" onClick={onAddBookmark} aria-label="Bookmark">
@@ -283,22 +306,17 @@ function EpubReader(props: Props) {
           </aside>
         )}
 
-        <div
-          className="readerViewer"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-        >
-          <div
-            className="readerTapPrev"
-            onClick={onPrev}
-            aria-label="Previous page"
-          />
+        <div className="readerViewer">
+          {status === 'loading' && (
+            <div className="readerStatus">Loading book…</div>
+          )}
+          {status === 'error' && (
+            <div className="readerStatus readerStatusError">
+              Unable to render this book.
+              {errorMessage ? ` (${errorMessage})` : ''}
+            </div>
+          )}
           <div ref={viewerRef} className="readerEpubHost" />
-          <div
-            className="readerTapNext"
-            onClick={onNext}
-            aria-label="Next page"
-          />
         </div>
       </div>
     </div>
